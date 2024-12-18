@@ -1,25 +1,12 @@
-use crate::errors::ScraperResult;
-use async_trait::async_trait;
-use chrono::prelude::*;
-use std::collections::HashMap;
-use url::Url;
+mod response;
+mod retry;
+mod scraper;
+pub mod http_scraper;
+pub mod mock_scraper;
 
-#[derive(Debug, Clone)]
-pub struct Response {
-    pub url: Url,
-    pub status: u16,
-    pub headers: HashMap<String, String>,
-    pub body: String,
-    pub timestamp: DateTime<Utc>,
-}
+#[cfg(test)]
+mod tests;
 
-#[async_trait]
-pub trait Scraper: Send + Sync {
-    async fn fetch(&self, url: Url) -> ScraperResult<Response>;
-
-    /// Clone the scraper to be used in different tasks
-    fn box_clone(&self) -> Box<dyn Scraper>;
-}
-
-pub mod playwright;
-pub mod reqwest;
+pub use response::Response;
+pub use retry::{BackoffPolicy, RetryConfig, RetryCondition, ContentRetryCondition};
+pub use scraper::Scraper;
