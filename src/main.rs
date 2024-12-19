@@ -1,7 +1,7 @@
 use std::time::Duration;
 use turboscraper::examples::example_spider::ExampleSpider;
+use turboscraper::scraper::{http_scraper::HttpScraper, BackoffPolicy, RetryConfig};
 use turboscraper::scraper::{ContentRetryCondition, RetryCondition};
-use turboscraper::scraper::{http_scraper::HttpScraper, RetryConfig, BackoffPolicy};
 use turboscraper::{errors::ScraperResult, Crawler};
 
 #[actix_rt::main]

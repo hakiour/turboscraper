@@ -132,4 +132,4 @@ async fn test_max_retries_exceeded() {
 
     assert_eq!(response.status, 429);
     assert_eq!(response.retry_count, 2);
-} 
+}

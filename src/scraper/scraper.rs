@@ -1,10 +1,10 @@
-use async_trait::async_trait;
-use url::Url;
-use crate::errors::ScraperResult;
 use super::response::Response;
 use super::retry::RetryConfig;
-use tokio::time::sleep;
+use crate::errors::ScraperResult;
+use async_trait::async_trait;
 use log;
+use tokio::time::sleep;
+use url::Url;
 
 #[async_trait]
 pub trait Scraper: Send + Sync {
@@ -17,8 +17,11 @@ pub trait Scraper: Send + Sync {
 
         loop {
             let response = self.fetch_single(url.clone()).await?;
-            
-            if !self.retry_config().should_retry(response.status, &response.body, retry_count) {
+
+            if !self
+                .retry_config()
+                .should_retry(response.status, &response.body, retry_count)
+            {
                 return Ok(Response {
                     retry_count,
                     ..response
@@ -27,7 +30,7 @@ pub trait Scraper: Send + Sync {
 
             retry_count += 1;
             let delay = self.retry_config().calculate_delay(retry_count);
-            
+
             log::warn!(
                 "Retrying request to {} (attempt {}/{}) after {:?}",
                 url,
@@ -39,4 +42,4 @@ pub trait Scraper: Send + Sync {
             sleep(delay).await;
         }
     }
-} 
+}

@@ -1,4 +1,4 @@
-use super::{Response, Scraper, RetryConfig};
+use super::{Response, RetryConfig, Scraper};
 use crate::errors::ScraperResult;
 use async_trait::async_trait;
 use chrono::Utc;
@@ -34,7 +34,9 @@ impl MockScraper {
 #[async_trait]
 impl Scraper for MockScraper {
     async fn fetch_single(&self, url: Url) -> ScraperResult<Response> {
-        let index = self.current_response.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        let index = self
+            .current_response
+            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
         let response = &self.responses[index % self.responses.len()];
 
         if let Some(delay) = response.delay {
@@ -58,4 +60,4 @@ impl Scraper for MockScraper {
     fn retry_config(&self) -> &RetryConfig {
         &self.retry_config
     }
-} 
+}

@@ -1,9 +1,11 @@
 use crate::errors::ScraperResult;
+use crate::scraper::Request;
 use crate::scraper::Response;
 use crate::storage::Storage;
-use crate::{spider::Request, Spider};
+use crate::Spider;
 use async_trait::async_trait;
 use scraper::{Html, Selector};
+use serde_json::json;
 use url::Url;
 
 pub struct ExampleSpider {
@@ -57,12 +59,21 @@ impl Spider for ExampleSpider {
         for element in document.select(&selector) {
             if let Some(href) = element.value().attr("href") {
                 if let Ok(new_url) = url.join(href) {
-                    requests.push(Request {
+                    let meta = json!({
+                        "parent_url": url.to_string(),
+                        "link_text": element.text().collect::<String>(),
+                        "title": element.value().attr("title").unwrap_or_default(),
+                        "parent_depth": depth,
+                    });
+
+                    let request = Request {
                         url: new_url,
                         callback: crate::spider::Callback::Parse,
-                        meta: None,
+                        meta: Some(meta),
                         depth: depth + 1,
-                    });
+                    };
+
+                    requests.push(request);
                 }
             }
         }

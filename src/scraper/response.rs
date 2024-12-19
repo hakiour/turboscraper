@@ -10,4 +10,4 @@ pub struct Response {
     pub body: String,
     pub timestamp: DateTime<Utc>,
     pub retry_count: usize,
-} 
+}

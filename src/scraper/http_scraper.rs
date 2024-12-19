@@ -1,4 +1,4 @@
-use super::{Response, Scraper, RetryConfig};
+use super::{Response, RetryConfig, Scraper};
 use crate::errors::ScraperResult;
 use async_trait::async_trait;
 use chrono::Utc;
@@ -47,7 +47,6 @@ impl HttpScraper {
             retry_config,
         }
     }
-
 }
 
 #[async_trait]

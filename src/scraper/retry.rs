@@ -1,5 +1,5 @@
-use std::time::Duration;
 use regex::Regex;
+use std::time::Duration;
 
 #[derive(Debug, Clone)]
 pub struct ContentRetryCondition {
@@ -74,7 +74,10 @@ impl RetryConfig {
                                 return true;
                             }
                         }
-                    } else if content.to_lowercase().contains(&content_condition.pattern.to_lowercase()) {
+                    } else if content
+                        .to_lowercase()
+                        .contains(&content_condition.pattern.to_lowercase())
+                    {
                         return true;
                     }
                 }
@@ -99,4 +102,4 @@ impl RetryConfig {
 
         std::cmp::min(delay, self.max_delay)
     }
-} 
+}
