@@ -50,6 +50,7 @@ impl Scraper for MockScraper {
             body: response.body.clone(),
             timestamp: Utc::now(),
             retry_count: 0,
+            retry_history: HashMap::new(),
         })
     }
 

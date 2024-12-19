@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use super::{Response, RetryConfig, Scraper};
 use crate::errors::ScraperResult;
 use async_trait::async_trait;
@@ -69,6 +71,7 @@ impl Scraper for HttpScraper {
             body,
             timestamp: Utc::now(),
             retry_count: 0,
+            retry_history: HashMap::new(),
         })
     }
 

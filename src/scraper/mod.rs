@@ -6,9 +6,9 @@ mod retry;
 mod scraper;
 
 #[cfg(test)]
-mod tests;
+mod retry_tests;
 
 pub use request::Request;
 pub use response::Response;
-pub use retry::{BackoffPolicy, ContentRetryCondition, RetryCondition, RetryConfig};
+pub use retry::{BackoffPolicy, RetryCategory, RetryCondition, RetryConfig, CategoryConfig, ContentRetryCondition};
 pub use scraper::Scraper;

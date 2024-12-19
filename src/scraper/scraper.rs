@@ -3,6 +3,7 @@ use super::retry::RetryConfig;
 use crate::errors::ScraperResult;
 use async_trait::async_trait;
 use log;
+use std::collections::HashMap;
 use tokio::time::sleep;
 use url::Url;
 
@@ -13,33 +14,35 @@ pub trait Scraper: Send + Sync {
     fn retry_config(&self) -> &RetryConfig;
 
     async fn fetch(&self, url: Url) -> ScraperResult<Response> {
-        let mut retry_count = 0;
+        let mut retry_counts = HashMap::new();
+        let mut total_retries = 0;
 
         loop {
             let response = self.fetch_single(url.clone()).await?;
 
-            if !self
-                .retry_config()
-                .should_retry(response.status, &response.body, retry_count)
+            if let Some((category, delay)) =
+                self.retry_config()
+                    .should_retry(response.status, &response.body, &mut retry_counts)
             {
-                return Ok(Response {
-                    retry_count,
-                    ..response
-                });
+                total_retries += 1;
+
+                log::warn!(
+                    "Retrying request to {} (category: {:?}, attempt {}) after {:?}",
+                    url,
+                    category,
+                    retry_counts.get(&category).unwrap(),
+                    delay
+                );
+
+                sleep(delay).await;
+                continue;
             }
 
-            retry_count += 1;
-            let delay = self.retry_config().calculate_delay(retry_count);
-
-            log::warn!(
-                "Retrying request to {} (attempt {}/{}) after {:?}",
-                url,
-                retry_count,
-                self.retry_config().max_retries,
-                delay
-            );
-
-            sleep(delay).await;
+            return Ok(Response {
+                retry_count: total_retries,
+                retry_history: retry_counts,
+                ..response
+            });
         }
     }
 }

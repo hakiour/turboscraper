@@ -1,3 +1,4 @@
+use super::retry::RetryCategory;
 use chrono::prelude::*;
 use std::collections::HashMap;
 use url::Url;
@@ -10,4 +11,5 @@ pub struct Response {
     pub body: String,
     pub timestamp: DateTime<Utc>,
     pub retry_count: usize,
+    pub retry_history: HashMap<RetryCategory, usize>,
 }
