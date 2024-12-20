@@ -1,5 +1,9 @@
 use regex::Regex;
+use std::collections::HashMap;
 use std::time::Duration;
+use url::Url;
+use parking_lot::RwLock;
+use std::sync::Arc;
 
 #[derive(Debug, Clone)]
 pub struct ContentRetryCondition {
@@ -53,92 +57,34 @@ impl Default for CategoryConfig {
 }
 
 #[derive(Debug, Clone)]
-pub struct RetryConfig {
-    pub categories: std::collections::HashMap<RetryCategory, CategoryConfig>,
+pub struct RetryState {
+    pub counts: HashMap<RetryCategory, usize>,
+    pub total_retries: usize,
 }
 
-impl Default for RetryConfig {
-    fn default() -> Self {
-        let mut categories = std::collections::HashMap::new();
-
-        // Rate Limit Configuration
-        categories.insert(
-            RetryCategory::RateLimit,
-            CategoryConfig {
-                max_retries: 5,
-                initial_delay: Duration::from_secs(5),
-                max_delay: Duration::from_secs(300),
-                conditions: vec![
-                    RetryCondition::StatusCode(429),
-                    RetryCondition::Content(ContentRetryCondition {
-                        pattern: "rate limit|too many requests".to_string(),
-                        is_regex: true,
-                    }),
-                ],
-                ..Default::default()
-            },
-        );
-
-        // Server Error Configuration
-        categories.insert(
-            RetryCategory::ServerError,
-            CategoryConfig {
-                max_retries: 3,
-                initial_delay: Duration::from_secs(1),
-                max_delay: Duration::from_secs(30),
-                conditions: vec![
-                    RetryCondition::StatusCode(500),
-                    RetryCondition::StatusCode(502),
-                    RetryCondition::StatusCode(503),
-                    RetryCondition::StatusCode(504),
-                ],
-                ..Default::default()
-            },
-        );
-
-        // Bot Detection Configuration
-        categories.insert(
-            RetryCategory::BotDetection,
-            CategoryConfig {
-                max_retries: 3,
-                initial_delay: Duration::from_secs(10),
-                max_delay: Duration::from_secs(600),
-                conditions: vec![RetryCondition::Content(ContentRetryCondition {
-                    pattern: "bot detected|captcha|verify human|automated".to_string(),
-                    is_regex: true,
-                })],
-                ..Default::default()
-            },
-        );
-
-        // Blacklisted Configuration
-        categories.insert(
-            RetryCategory::Blacklisted,
-            CategoryConfig {
-                max_retries: 5,
-                initial_delay: Duration::from_secs(60),
-                max_delay: Duration::from_secs(3600),
-                conditions: vec![RetryCondition::Content(ContentRetryCondition {
-                    pattern: "ip.*blocked|access denied|blacklisted".to_string(),
-                    is_regex: true,
-                })],
-                ..Default::default()
-            },
-        );
-
-        Self { categories }
+impl RetryState {
+    pub fn new() -> Self {
+        Self {
+            counts: HashMap::new(),
+            total_retries: 0,
+        }
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct RetryConfig {
+    pub categories: HashMap<RetryCategory, CategoryConfig>,
+    retry_states: Arc<RwLock<HashMap<String, RetryState>>>,
+}
+
 impl RetryConfig {
-    pub fn should_retry(
-        &self,
-        status: u16,
-        content: &str,
-        retry_count: &mut std::collections::HashMap<RetryCategory, usize>,
-    ) -> Option<(RetryCategory, Duration)> {
+    pub fn should_retry(&self, url: &Url, status: u16, content: &str) -> Option<(RetryCategory, Duration)> {
+        let url_str = url.to_string();
+        let mut states = self.retry_states.write();
+        let state = states.entry(url_str).or_insert_with(RetryState::new);
+
         for (category, config) in &self.categories {
-            let current_retries = retry_count.get(category).copied().unwrap_or(0);
+            let current_retries = state.counts.get(category).copied().unwrap_or(0);
             if current_retries >= config.max_retries {
                 continue;
             }
@@ -161,13 +107,31 @@ impl RetryConfig {
 
                 if matches {
                     let new_count = current_retries + 1;
-                    retry_count.insert(category.clone(), new_count);
+                    state.counts.insert(category.clone(), new_count);
+                    state.total_retries += 1;
                     let delay = config.calculate_delay(current_retries);
                     return Some((category.clone(), delay));
                 }
             }
         }
         None
+    }
+
+    pub fn get_retry_state(&self, url: &Url) -> RetryState {
+        self.retry_states
+            .read()
+            .get(&url.to_string())
+            .cloned()
+            .unwrap_or_else(RetryState::new)
+    }
+}
+
+impl Default for RetryConfig {
+    fn default() -> Self {
+        Self {
+            categories: Default::default(),
+            retry_states: Arc::new(RwLock::new(HashMap::new())),
+        }
     }
 }
 

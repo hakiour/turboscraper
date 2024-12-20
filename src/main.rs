@@ -8,7 +8,7 @@ use turboscraper::{errors::ScraperResult, Crawler};
 #[actix_rt::main]
 async fn main() -> ScraperResult<()> {
     env_logger::builder()
-        .filter_level(log::LevelFilter::Debug)
+        .filter_level(log::LevelFilter::Info)
         .filter_module("selectors", log::LevelFilter::Warn)
         .init();
 
@@ -34,7 +34,7 @@ async fn main() -> ScraperResult<()> {
 
     let scraper = Box::new(HttpScraper::with_config(retry_config));
     let crawler = Crawler::new(scraper, 30);
-    let spider = ExampleSpider::new()?;
+    let spider = ExampleSpider::new()?.max_depth(999999);
 
     crawler.run(spider).await?;
 

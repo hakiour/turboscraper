@@ -11,13 +11,20 @@ use url::Url;
 
 pub struct ExampleSpider {
     storage: Storage,
+    max_depth: usize,
 }
 
 impl ExampleSpider {
     pub fn new() -> ScraperResult<Self> {
         Ok(Self {
             storage: Storage::new("output")?,
+            max_depth: 2,
         })
+    }
+
+    pub fn max_depth(mut self, depth: usize) -> Self {
+        self.max_depth = depth;
+        self
     }
 }
 
@@ -28,11 +35,11 @@ impl Spider for ExampleSpider {
     }
 
     fn start_urls(&self) -> Vec<Url> {
-        vec![Url::parse("https://www.rust-lang.org").unwrap()]
+        vec![Url::parse("https://books.toscrape.com/").unwrap()]
     }
 
     fn max_depth(&self) -> usize {
-        2 // Only go 2 levels deep
+        self.max_depth
     }
 
     async fn parse(

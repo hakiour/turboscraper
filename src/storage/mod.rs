@@ -1,6 +1,5 @@
 use crate::errors::ScraperResult;
 use crate::scraper::Response;
-use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
 use std::fs;
 use std::path::{Path, PathBuf};
 use url::Url;
@@ -22,11 +21,15 @@ impl Storage {
 
         let json_path = self.output_dir.join(format!("{}.json", filename));
         let data = serde_json::json!({
-            "url": response.url.to_string(),
-            "status": response.status,
-            "headers": response.headers,
-            "timestamp": response.timestamp,
-            "html_base64": BASE64.encode(&response.body),
+            "metadata": {
+                "url": response.url.to_string(),
+                "status": response.status,
+                "headers": response.headers,
+                "timestamp": response.timestamp,
+            },
+            "content": {
+                "html": response.body
+            }
         });
 
         fs::write(json_path.clone(), serde_json::to_string_pretty(&data)?)?;

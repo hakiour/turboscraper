@@ -14,9 +14,6 @@ pub trait Scraper: Send + Sync {
     fn retry_config(&self) -> &RetryConfig;
 
     async fn fetch(&self, url: Url) -> ScraperResult<Response> {
-        let mut retry_counts = HashMap::new();
-        let mut total_retries = 0;
-
         loop {
             info!("Fetching URL: {}", url);
             let response = self.fetch_single(url.clone()).await?;
@@ -26,12 +23,9 @@ pub trait Scraper: Send + Sync {
                 response.body.len()
             );
 
-            if let Some((category, delay)) =
-                self.retry_config()
-                    .should_retry(response.status, &response.body, &mut retry_counts)
-            {
-                total_retries += 1;
-                let attempt = retry_counts.get(&category).unwrap();
+            if let Some((category, delay)) = self.retry_config().should_retry(&url, response.status, &response.body) {
+                let state = self.retry_config().get_retry_state(&url);
+                let attempt = state.counts.get(&category).unwrap();
 
                 warn!(
                     "Retry triggered for URL: {} (category={:?}, attempt={}/{}, delay={:?})",
@@ -46,28 +40,21 @@ pub trait Scraper: Send + Sync {
                     delay
                 );
 
-                if let Some(config) = self.retry_config().categories.get(&category) {
-                    debug!(
-                        "Retry config for {:?}: max_retries={}, current_attempt={}",
-                        category, config.max_retries, attempt
-                    );
-                }
-
                 sleep(delay).await;
                 continue;
             }
 
+            let state = self.retry_config().get_retry_state(&url);
+            
             info!(
                 "Request completed for URL: {} (total_retries={}, status={})",
-                url, total_retries, response.status
+                url, state.total_retries, response.status
             );
-            debug!("Retry history: {:?}", retry_counts);
-
-            trace!("Response content length: {} bytes", response.body.len());
+            debug!("Retry history for {}: {:?}", url, state.counts);
 
             return Ok(Response {
-                retry_count: total_retries,
-                retry_history: retry_counts,
+                retry_count: state.total_retries,
+                retry_history: state.counts,
                 ..response
             });
         }
