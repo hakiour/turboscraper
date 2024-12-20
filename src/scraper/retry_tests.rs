@@ -171,17 +171,17 @@ async fn test_max_retries_exceeded() {
 async fn test_multiple_retry_categories() {
     let responses = vec![
         MockResponse {
-            status: 429,  // First rate limit
+            status: 429, // First rate limit
             body: "Rate limited".to_string(),
             delay: None,
         },
         MockResponse {
-            status: 200,  // Then bot detection
+            status: 200, // Then bot detection
             body: "Bot detected, please verify".to_string(),
             delay: None,
         },
         MockResponse {
-            status: 200,  // Finally success
+            status: 200, // Finally success
             body: "Success".to_string(),
             delay: None,
         },
@@ -310,7 +310,9 @@ async fn test_custom_category() {
     assert_eq!(response.body, "Success");
     assert_eq!(response.retry_count, 1);
     assert_eq!(
-        response.retry_history.get(&RetryCategory::Custom("CloudflareCheck".to_string())),
+        response
+            .retry_history
+            .get(&RetryCategory::Custom("CloudflareCheck".to_string())),
         Some(&1)
     );
 }
@@ -318,7 +320,7 @@ async fn test_custom_category() {
 #[tokio::test]
 async fn test_no_matching_retry_condition() {
     let responses = vec![MockResponse {
-        status: 404,  // Not configured for retry
+        status: 404, // Not configured for retry
         body: "Not Found".to_string(),
         delay: None,
     }];

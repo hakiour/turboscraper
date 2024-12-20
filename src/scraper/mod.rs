@@ -10,5 +10,8 @@ mod retry_tests;
 
 pub use request::Request;
 pub use response::Response;
-pub use retry::{BackoffPolicy, RetryCategory, RetryCondition, RetryConfig, CategoryConfig, ContentRetryCondition};
+pub use retry::{
+    BackoffPolicy, CategoryConfig, ContentRetryCondition, RetryCategory, RetryCondition,
+    RetryConfig,
+};
 pub use scraper::Scraper;

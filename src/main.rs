@@ -1,12 +1,16 @@
+use log;
 use std::time::Duration;
 use turboscraper::examples::example_spider::ExampleSpider;
 use turboscraper::scraper::{http_scraper::HttpScraper, BackoffPolicy, RetryConfig};
-use turboscraper::scraper::{ContentRetryCondition, RetryCondition, RetryCategory, CategoryConfig};
+use turboscraper::scraper::{CategoryConfig, ContentRetryCondition, RetryCategory, RetryCondition};
 use turboscraper::{errors::ScraperResult, Crawler};
 
 #[actix_rt::main]
 async fn main() -> ScraperResult<()> {
-    env_logger::init();
+    env_logger::builder()
+        .filter_level(log::LevelFilter::Debug)
+        .filter_module("selectors", log::LevelFilter::Warn)
+        .init();
 
     let mut retry_config = RetryConfig::default();
 
@@ -25,21 +29,6 @@ async fn main() -> ScraperResult<()> {
                 }),
             ],
             backoff_policy: BackoffPolicy::Exponential { factor: 2.0 },
-        },
-    );
-
-    // Add a custom category
-    retry_config.categories.insert(
-        RetryCategory::Custom("CloudflareProtection".to_string()),
-        CategoryConfig {
-            max_retries: 5,
-            initial_delay: Duration::from_secs(10),
-            max_delay: Duration::from_secs(300),
-            conditions: vec![RetryCondition::Content(ContentRetryCondition {
-                pattern: "checking your browser|cloudflare".to_string(),
-                is_regex: true,
-            })],
-            backoff_policy: BackoffPolicy::Linear,
         },
     );
 

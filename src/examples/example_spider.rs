@@ -4,6 +4,7 @@ use crate::scraper::Response;
 use crate::storage::Storage;
 use crate::Spider;
 use async_trait::async_trait;
+use log::{debug, info, trace};
 use scraper::{Html, Selector};
 use serde_json::json;
 use url::Url;
@@ -41,7 +42,7 @@ impl Spider for ExampleSpider {
         depth: usize,
     ) -> ScraperResult<Vec<Request>> {
         let saved_path = self.storage.save_response(&response)?;
-        println!(
+        debug!(
             "Saved response to: {} (depth: {})",
             saved_path.display(),
             depth
@@ -50,10 +51,9 @@ impl Spider for ExampleSpider {
         let document = Html::parse_document(&response.body);
         let selector = Selector::parse("a").unwrap();
 
-        println!(
-            "Parsing URL: {} (Status: {}, Depth: {})",
-            url, response.status, depth
-        );
+        trace!("Parsing HTML content: {}", response.body);
+        info!("Processing URL: {} at depth {}", url, depth);
+        debug!("Response status: {}", response.status);
 
         let mut requests = Vec::new();
         for element in document.select(&selector) {

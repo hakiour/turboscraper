@@ -3,6 +3,7 @@ use crate::scraper::Scraper;
 use crate::spider::Spider;
 use actix_rt::spawn;
 use futures::stream::{FuturesUnordered, StreamExt};
+use log::{debug, info, trace, warn};
 use parking_lot::RwLock;
 use std::collections::HashSet;
 use std::sync::Arc;
@@ -15,6 +16,10 @@ pub struct Crawler {
 
 impl Crawler {
     pub fn new(scraper: Box<dyn Scraper>, concurrent_requests: usize) -> Self {
+        info!(
+            "Initializing crawler with {} concurrent requests",
+            concurrent_requests
+        );
         Self {
             scraper,
             concurrent_requests,
@@ -26,17 +31,25 @@ impl Crawler {
         let spider = Arc::new(spider);
         let mut futures = FuturesUnordered::new();
 
+        info!("Starting spider: {}", spider.name());
+        debug!("Max depth: {}", spider.max_depth());
+
         // Initialize with start URLs at depth 0
         for url in spider.start_urls() {
             let spider_clone = Arc::clone(&spider);
             let scraper = self.scraper.box_clone();
             let visited = Arc::clone(&self.visited_urls);
 
-            // Mark URL as visited
+            info!("Adding start URL: {}", url);
             visited.write().insert(url.to_string());
 
             futures.push(spawn(async move {
                 let response = scraper.fetch(url.clone()).await?;
+                trace!(
+                    "Response content length for {}: {} bytes",
+                    url,
+                    response.body.len()
+                );
                 spider_clone.parse(response, url, 0).await
             }));
         }
@@ -44,22 +57,29 @@ impl Crawler {
         while let Some(result) = futures.next().await {
             match result {
                 Ok(Ok(new_requests)) => {
-                    // Handle new requests discovered during parsing
+                    debug!("Found {} new URLs to process", new_requests.len());
+
                     for request in new_requests {
-                        // Skip if max depth reached or URL already visited
                         if request.depth >= spider.max_depth() {
+                            debug!("Skipping URL {} - max depth reached", request.url);
                             continue;
                         }
 
                         let url_str = request.url.to_string();
                         if self.visited_urls.read().contains(&url_str) {
+                            debug!("Skipping URL {} - already visited", url_str);
                             continue;
                         }
 
-                        // Mark as visited
+                        info!("Processing new URL: {} at depth {}", url_str, request.depth);
+                        if let Some(meta) = &request.meta {
+                            trace!("Request metadata: {:?}", meta);
+                        }
+
                         self.visited_urls.write().insert(url_str);
 
                         if futures.len() >= self.concurrent_requests {
+                            debug!("Reached concurrent request limit, waiting for slot");
                             futures.next().await;
                         }
 
@@ -69,15 +89,21 @@ impl Crawler {
 
                         futures.push(spawn(async move {
                             let response = scraper.fetch(request.url.clone()).await?;
+                            trace!("Response content length: {} bytes", response.body.len());
                             spider_clone.parse(response, request.url, depth).await
                         }));
                     }
                 }
-                Ok(Err(e)) => log::error!("Error processing request: {}", e),
-                Err(e) => log::error!("Task error: {}", e),
+                Ok(Err(e)) => warn!("Error processing request: {}", e),
+                Err(e) => warn!("Task error: {}", e),
             }
         }
 
+        info!(
+            "Spider {} completed. Total URLs processed: {}",
+            spider.name(),
+            self.visited_urls.read().len()
+        );
         Ok(())
     }
 }
