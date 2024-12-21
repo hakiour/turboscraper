@@ -1,8 +1,7 @@
-use super::*;
 use crate::{scrapers::mock_scraper::{MockResponse, MockScraper}, Scraper};
-use retry::{CategoryConfig, RetryCategory};
 use std::time::Duration;
 use url::Url;
+use crate::core::retry::{RetryConfig, RetryCondition, BackoffPolicy, RetryCategory, ContentRetryCondition, CategoryConfig};
 
 #[tokio::test]
 async fn test_rate_limit_retry() {
