@@ -1,15 +1,23 @@
-use crate::{Response, ScraperResult, StatsTracker};
+#[cfg(test)]
 use crate::core::retry::RetryConfig;
+#[cfg(test)]
+use crate::{Response, Scraper, ScraperResult, StatsTracker};
+#[cfg(test)]
 use async_trait::async_trait;
+#[cfg(test)]
 use chrono::Utc;
+#[cfg(test)]
 use std::collections::HashMap;
+#[cfg(test)]
 use std::sync::Arc;
+#[cfg(test)]
 use std::sync::RwLock;
+#[cfg(test)]
 use tokio::time::sleep;
+#[cfg(test)]
 use url::Url;
 
-use super::Scraper;
-
+#[cfg(test)]
 #[derive(Clone)]
 pub struct MockResponse {
     pub status: u16,
@@ -17,6 +25,7 @@ pub struct MockResponse {
     pub delay: Option<std::time::Duration>,
 }
 
+#[cfg(test)]
 #[derive(Clone)]
 pub struct MockScraper {
     retry_config: RetryConfig,
@@ -25,6 +34,7 @@ pub struct MockScraper {
     stats: Arc<RwLock<Arc<StatsTracker>>>,
 }
 
+#[cfg(test)]
 impl MockScraper {
     pub fn new(retry_config: RetryConfig, responses: Vec<MockResponse>) -> Self {
         Self {
@@ -36,6 +46,7 @@ impl MockScraper {
     }
 }
 
+#[cfg(test)]
 #[async_trait]
 impl Scraper for MockScraper {
     async fn fetch_single(&self, url: Url) -> ScraperResult<Response> {
@@ -56,6 +67,7 @@ impl Scraper for MockScraper {
             timestamp: Utc::now(),
             retry_count: 0,
             retry_history: HashMap::new(),
+            meta: None,
         })
     }
 

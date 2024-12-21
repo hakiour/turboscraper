@@ -1,3 +1,5 @@
+use crate::core::spider::SpiderResponse;
+use crate::core::SpiderCallback;
 use crate::stats::StatsTracker;
 use crate::Scraper;
 use actix_rt::spawn;
@@ -58,7 +60,11 @@ impl Crawler {
                     url,
                     response.body.len()
                 );
-                spider_clone.parser().parse(response, url, 0).await
+                let spider_response = SpiderResponse {
+                    response,
+                    callback: SpiderCallback::ParseList,
+                };
+                spider_clone.parse(spider_response, url, 0).await
             }));
         }
 
@@ -97,8 +103,13 @@ impl Crawler {
 
                         futures.push(spawn(async move {
                             let response = scraper.fetch(request.url.clone()).await?;
-                            trace!("Response content length: {} bytes", response.body.len());
-                            spider_clone.parser().parse(response, request.url, depth).await
+                            let spider_response = SpiderResponse {
+                                response,
+                                callback: request.callback.clone(),
+                            };
+                            spider_clone
+                                .parse(spider_response, request.url, depth)
+                                .await
                         }));
                     }
                 }

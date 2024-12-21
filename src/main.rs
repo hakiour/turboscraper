@@ -1,12 +1,12 @@
-use turboscraper::examples::example_spiders::beginner::simple_spider::BookSpider;
 use std::time::Duration;
+use turboscraper::examples::example_spiders::beginner::simple_spider::BookSpider;
 
+use turboscraper::core::retry::{
+    BackoffPolicy, CategoryConfig, ContentRetryCondition, RetryCategory, RetryCondition,
+    RetryConfig,
+};
 use turboscraper::scrapers::http_scraper::HttpScraper;
 use turboscraper::{Crawler, ScraperResult};
-use turboscraper::core::retry::{
-    RetryConfig, RetryCategory, RetryCondition,
-    BackoffPolicy, ContentRetryCondition, CategoryConfig
-};
 
 #[actix_rt::main]
 async fn main() -> ScraperResult<()> {
@@ -38,8 +38,7 @@ async fn main() -> ScraperResult<()> {
 
     let scraper = Box::new(HttpScraper::with_config(retry_config));
     let crawler: Crawler = Crawler::new(scraper, 30);
-    let spider = BookSpider::new()?
-        .with_max_depth(999999);
+    let spider = BookSpider::new()?.with_max_depth(999999);
 
     crawler.run(spider).await?;
 

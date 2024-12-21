@@ -1,8 +1,8 @@
 mod crawler;
 mod errors;
-mod spider;
 pub mod retry;
+pub mod spider;
 
 pub use crawler::Crawler;
 pub use errors::{ScraperError, ScraperResult};
-pub use spider::{Spider, Callback}; 
+pub use spider::{Spider, SpiderCallback};

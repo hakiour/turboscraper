@@ -1,6 +1,7 @@
+mod r#impl;
+mod mock_scraper;
 mod types;
 mod utils;
-mod r#impl;
 
 pub use types::*;
 

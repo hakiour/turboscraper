@@ -1,9 +1,9 @@
 use super::types::*;
 use super::utils::*;
+use parking_lot::RwLock;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
-use parking_lot::RwLock;
 use url::Url;
 
 impl Default for CategoryConfig {
