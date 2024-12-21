@@ -1,8 +1,7 @@
-use crate::errors::ScraperResult;
-use crate::scraper::Request;
-use crate::scraper::Response;
 use async_trait::async_trait;
 use url::Url;
+
+use crate::parser::Parser;
 
 #[derive(Debug, Clone)]
 pub enum Callback {
@@ -17,15 +16,10 @@ pub trait Spider {
     fn max_depth(&self) -> usize {
         2
     }
-
-    async fn parse(
-        &self,
-        response: Response,
-        url: Url,
-        depth: usize,
-    ) -> ScraperResult<Vec<Request>>;
+    
+    fn parser(&self) -> &dyn Parser;
 
     fn allowed_domains(&self) -> Option<Vec<String>> {
         None
     }
-}
+} 

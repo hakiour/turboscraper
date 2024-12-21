@@ -1,13 +1,13 @@
-use crate::errors::ScraperResult;
-use crate::scraper::Scraper;
-use crate::spider::Spider;
 use crate::stats::StatsTracker;
+use crate::Scraper;
 use actix_rt::spawn;
 use futures::stream::{FuturesUnordered, StreamExt};
 use log::{debug, info, trace, warn};
 use parking_lot::RwLock;
 use std::collections::HashSet;
 use std::sync::Arc;
+
+use super::{ScraperResult, Spider};
 
 pub struct Crawler {
     scraper: Box<dyn Scraper>,
@@ -58,7 +58,7 @@ impl Crawler {
                     url,
                     response.body.len()
                 );
-                spider_clone.parse(response, url, 0).await
+                spider_clone.parser().parse(response, url, 0).await
             }));
         }
 
@@ -98,7 +98,7 @@ impl Crawler {
                         futures.push(spawn(async move {
                             let response = scraper.fetch(request.url.clone()).await?;
                             trace!("Response content length: {} bytes", response.body.len());
-                            spider_clone.parse(response, request.url, depth).await
+                            spider_clone.parser().parse(response, request.url, depth).await
                         }));
                     }
                 }

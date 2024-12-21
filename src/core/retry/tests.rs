@@ -1,5 +1,5 @@
 use super::*;
-use crate::scraper::mock_scraper::{MockResponse, MockScraper};
+use crate::{scrapers::mock_scraper::{MockResponse, MockScraper}, Scraper};
 use retry::{CategoryConfig, RetryCategory};
 use std::time::Duration;
 use url::Url;

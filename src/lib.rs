@@ -1,14 +1,15 @@
-pub mod crawler;
-// pub mod extractors;
-// pub mod middleware;
-pub mod errors;
-pub mod examples;
-pub mod scraper;
-pub mod spider;
-pub mod stats;
+pub mod core;
+pub mod http;
+pub mod parser;
+pub mod scrapers;
 pub mod storage;
+pub mod stats;
 
-pub use crawler::Crawler;
-pub use spider::Spider;
-pub use stats::StatsTracker;
+pub mod examples;
+
+pub use core::{Crawler, Spider, ScraperResult, ScraperError};
+pub use http::{Request, Response};
+pub use parser::Parser;
+pub use scrapers::Scraper;
 pub use storage::Storage;
+pub use stats::StatsTracker;

@@ -1,14 +1,16 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::RwLock;
-
-use super::{Response, RetryConfig, Scraper};
-use crate::{errors::ScraperResult, StatsTracker};
 use async_trait::async_trait;
 use chrono::Utc;
 use reqwest::{header, Client};
 use url::Url;
 
+use crate::Response;
+use crate::{StatsTracker, ScraperResult};
+use crate::core::retry::RetryConfig;
+
+use super::Scraper;
 const DEFAULT_USER_AGENT: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 
 #[derive(Clone)]
@@ -16,6 +18,12 @@ pub struct HttpScraper {
     client: Client,
     retry_config: RetryConfig,
     stats: Arc<RwLock<Arc<StatsTracker>>>,
+}
+
+impl Default for HttpScraper {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl HttpScraper {

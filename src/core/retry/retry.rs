@@ -62,6 +62,12 @@ pub struct RetryState {
     pub total_retries: usize,
 }
 
+impl Default for RetryState {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl RetryState {
     pub fn new() -> Self {
         Self {
@@ -86,7 +92,7 @@ impl RetryConfig {
     ) -> Option<(RetryCategory, Duration)> {
         let url_str = url.to_string();
         let mut states = self.retry_states.write();
-        let state = states.entry(url_str).or_insert_with(RetryState::new);
+        let state = states.entry(url_str).or_default();
 
         for (category, config) in &self.categories {
             let current_retries = state.counts.get(category).copied().unwrap_or(0);

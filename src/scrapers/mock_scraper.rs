@@ -1,6 +1,5 @@
-use super::{Response, RetryConfig, Scraper};
-use crate::errors::ScraperResult;
-use crate::StatsTracker;
+use crate::{Response, ScraperResult, StatsTracker};
+use crate::core::retry::RetryConfig;
 use async_trait::async_trait;
 use chrono::Utc;
 use std::collections::HashMap;
@@ -8,6 +7,8 @@ use std::sync::Arc;
 use std::sync::RwLock;
 use tokio::time::sleep;
 use url::Url;
+
+use super::Scraper;
 
 #[derive(Clone)]
 pub struct MockResponse {

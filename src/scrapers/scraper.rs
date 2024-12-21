@@ -1,6 +1,5 @@
-use super::response::Response;
-use super::retry::RetryConfig;
-use crate::{errors::ScraperResult, StatsTracker};
+use crate::{Response, ScraperResult, StatsTracker};
+use crate::core::retry::RetryConfig;
 use async_trait::async_trait;
 use chrono::Utc;
 use log::{debug, info, warn};

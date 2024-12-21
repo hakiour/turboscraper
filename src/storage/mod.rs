@@ -1,9 +1,9 @@
-use crate::errors::ScraperResult;
-use crate::scraper::Response;
 use std::fs;
 use std::path::{Path, PathBuf};
 use url::Url;
 use uuid::Uuid;
+
+use crate::{Response, ScraperResult};
 
 pub struct Storage {
     output_dir: PathBuf,

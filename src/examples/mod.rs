@@ -1,1 +1,1 @@
-pub mod example_spider;
+pub mod example_spiders;

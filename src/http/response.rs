@@ -1,4 +1,4 @@
-use super::retry::RetryCategory;
+use crate::core::retry::RetryCategory;
 use chrono::prelude::*;
 use std::collections::HashMap;
 use url::Url;
