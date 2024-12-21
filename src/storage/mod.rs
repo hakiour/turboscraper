@@ -29,7 +29,8 @@ impl Storage {
                 "timestamp": response.timestamp,
             },
             "content": {
-                "html": response.body
+                "data": response.body,
+                "type": response.response_type.to_string()
             }
         });
 

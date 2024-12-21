@@ -8,6 +8,7 @@ use std::sync::RwLock;
 use url::Url;
 
 use crate::core::retry::RetryConfig;
+use crate::http::ResponseType;
 use crate::Response;
 use crate::{ScraperResult, StatsTracker};
 
@@ -107,6 +108,7 @@ impl HttpScraper {
             retry_count: 0,
             retry_history: HashMap::new(),
             meta: Some(meta),
+            response_type: ResponseType::Html,
         })
     }
 

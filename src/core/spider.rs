@@ -4,10 +4,17 @@ use url::Url;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum SpiderCallback {
-    ParseList,       // For parsing list pages (e.g., category pages)
+    Bootstrap,        // For initial page
     ParseItem,       // For parsing detail pages (e.g., product pages)
     ParsePagination, // For handling pagination
     Custom(String),  // For custom parsing methods
+}
+
+#[derive(Debug)]
+pub enum ParseResult {
+    Continue(Vec<Request>),  // Continue crawling with these requests
+    Skip,                    // Skip this URL but continue crawling
+    Stop,                    // Stop crawling
 }
 
 #[derive(Debug, Clone)]
@@ -24,12 +31,18 @@ pub trait Spider {
         2
     }
 
-    async fn parse(
-        &self,
-        response: SpiderResponse,
-        url: Url,
-        depth: usize,
-    ) -> ScraperResult<Vec<Request>>;
+    async fn parse(&self, response: SpiderResponse, url: Url, depth: usize) -> ScraperResult<ParseResult>;
+    
+    fn get_initial_requests(&self) -> Vec<Request> {
+        self.start_urls()
+            .into_iter()
+            .map(|url| Request::new(url, self.get_initial_callback(), 0))
+            .collect()
+    }
+
+    fn get_initial_callback(&self) -> SpiderCallback {
+        SpiderCallback::Bootstrap
+    }
 
     fn allowed_domains(&self) -> Option<Vec<String>> {
         None

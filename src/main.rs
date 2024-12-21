@@ -11,7 +11,7 @@ use turboscraper::{Crawler, ScraperResult};
 #[actix_rt::main]
 async fn main() -> ScraperResult<()> {
     env_logger::builder()
-        .filter_level(log::LevelFilter::Warn)
+        .filter_level(log::LevelFilter::Info)
         .filter_module("selectors", log::LevelFilter::Warn)
         .filter_module("html5ever", log::LevelFilter::Error)
         .init();

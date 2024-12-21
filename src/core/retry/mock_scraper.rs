@@ -1,6 +1,8 @@
 #[cfg(test)]
 use crate::core::retry::RetryConfig;
 #[cfg(test)]
+use crate::http::ResponseType;
+#[cfg(test)]
 use crate::{Response, Scraper, ScraperResult, StatsTracker};
 #[cfg(test)]
 use async_trait::async_trait;
@@ -68,6 +70,7 @@ impl Scraper for MockScraper {
             retry_count: 0,
             retry_history: HashMap::new(),
             meta: None,
+            response_type: ResponseType::Html,
         })
     }
 

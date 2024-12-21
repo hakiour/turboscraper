@@ -1,9 +1,9 @@
-use crate::core::spider::SpiderResponse;
+use crate::core::spider::{ParseResult, SpiderResponse};
 use crate::core::SpiderCallback;
 use crate::storage::Storage;
 use crate::{Request, Response, ScraperResult, Spider};
 use async_trait::async_trait;
-use log::{debug, error};
+use log::{debug, error, info};
 use scraper::{Html, Selector};
 use serde_json::json;
 use url::Url;
@@ -28,24 +28,16 @@ impl BookSpider {
         self
     }
 
-    async fn parse_book_list(
+    fn parse_book_list(
         &self,
         response: Response,
         url: Url,
         depth: usize,
     ) -> ScraperResult<Vec<Request>> {
-        //let saved_path = self.storage.save_response(&response)?;
-        // debug!(
-        //     "Saved response to: {} (depth: {})",
-        //     saved_path.display(),
-        //     depth
-        // );
-
-        let document = Html::parse_document(&response.body);
+        let document = Html::parse_document(&response.body.clone());
 
         // Parse book links
         let book_selector = Selector::parse("article.product_pod h3 a").unwrap();
-        let next_page_selector = Selector::parse("li.next a").unwrap();
 
         let mut requests = Vec::new();
 
@@ -63,6 +55,22 @@ impl BookSpider {
                 }
             }
         }
+
+        Ok(requests)
+    }
+
+    fn next_page(
+        &self,
+        response: Response,
+        url: Url,
+        depth: usize,
+    ) -> ScraperResult<Vec<Request>> {
+        let document = Html::parse_document(&response.body);
+
+        // Parse book links
+        let next_page_selector = Selector::parse("li.next a").unwrap();
+
+        let mut requests = Vec::new();
 
         // Handle pagination
         if let Some(next_element) = document.select(&next_page_selector).next() {
@@ -115,27 +123,25 @@ impl Spider for BookSpider {
         self.max_depth
     }
 
-    async fn parse(
-        &self,
-        spider_response: SpiderResponse,
-        url: Url,
-        depth: usize,
-    ) -> ScraperResult<Vec<Request>> {
+    async fn parse(&self, spider_response: SpiderResponse, url: Url, depth: usize) -> ScraperResult<ParseResult> {
         match spider_response.callback {
-            SpiderCallback::ParseList => {
-                self.parse_book_list(spider_response.response, url, depth)
-                    .await
+            SpiderCallback::Bootstrap | SpiderCallback::ParsePagination => {
+                // Parse the book list
+                let mut requests = self.parse_book_list(spider_response.response.clone(), url.clone(), depth)?;
+
+                // Get the next page
+                let next_page_requests = self.next_page(spider_response.response, url, depth)?;
+                requests.extend(next_page_requests);
+
+                Ok(ParseResult::Continue(requests))
             }
             SpiderCallback::ParseItem => {
-                self.parse_book(spider_response.response, url, depth).await
+                self.parse_book(spider_response.response, url, depth).await?;
+                Ok(ParseResult::Skip)  // No more URLs to crawl from book pages
             }
-            SpiderCallback::ParsePagination => {
-                self.parse_book_list(spider_response.response, url, depth)
-                    .await
-            } // Reuse list parser for pagination
             SpiderCallback::Custom(ref name) => {
                 error!("Unhandled custom callback: {}", name);
-                Ok(Vec::new())
+                Ok(ParseResult::Skip)
             }
         }
     }
