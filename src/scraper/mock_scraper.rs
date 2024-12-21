@@ -1,9 +1,11 @@
 use super::{Response, RetryConfig, Scraper};
 use crate::errors::ScraperResult;
+use crate::StatsTracker;
 use async_trait::async_trait;
 use chrono::Utc;
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::sync::RwLock;
 use tokio::time::sleep;
 use url::Url;
 
@@ -19,6 +21,7 @@ pub struct MockScraper {
     retry_config: RetryConfig,
     responses: Arc<Vec<MockResponse>>,
     current_response: Arc<std::sync::atomic::AtomicUsize>,
+    stats: Arc<RwLock<Arc<StatsTracker>>>,
 }
 
 impl MockScraper {
@@ -27,6 +30,7 @@ impl MockScraper {
             retry_config,
             responses: Arc::new(responses),
             current_response: Arc::new(std::sync::atomic::AtomicUsize::new(0)),
+            stats: Arc::new(RwLock::new(Arc::new(StatsTracker::new()))),
         }
     }
 }
@@ -60,5 +64,13 @@ impl Scraper for MockScraper {
 
     fn retry_config(&self) -> &RetryConfig {
         &self.retry_config
+    }
+    fn stats(&self) -> &StatsTracker {
+        static STATS: std::sync::OnceLock<StatsTracker> = std::sync::OnceLock::new();
+        STATS.get_or_init(|| (*self.stats.read().unwrap()).as_ref().clone())
+    }
+
+    fn set_stats(&self, stats: Arc<StatsTracker>) {
+        *self.stats.write().unwrap() = stats;
     }
 }

@@ -1,9 +1,9 @@
+use parking_lot::RwLock;
 use regex::Regex;
 use std::collections::HashMap;
+use std::sync::Arc;
 use std::time::Duration;
 use url::Url;
-use parking_lot::RwLock;
-use std::sync::Arc;
 
 #[derive(Debug, Clone)]
 pub struct ContentRetryCondition {
@@ -78,7 +78,12 @@ pub struct RetryConfig {
 }
 
 impl RetryConfig {
-    pub fn should_retry(&self, url: &Url, status: u16, content: &str) -> Option<(RetryCategory, Duration)> {
+    pub fn should_retry(
+        &self,
+        url: &Url,
+        status: u16,
+        content: &str,
+    ) -> Option<(RetryCategory, Duration)> {
         let url_str = url.to_string();
         let mut states = self.retry_states.write();
         let state = states.entry(url_str).or_insert_with(RetryState::new);

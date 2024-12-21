@@ -1,6 +1,7 @@
 use crate::errors::ScraperResult;
 use crate::scraper::Scraper;
 use crate::spider::Spider;
+use crate::stats::StatsTracker;
 use actix_rt::spawn;
 use futures::stream::{FuturesUnordered, StreamExt};
 use log::{debug, info, trace, warn};
@@ -12,6 +13,7 @@ pub struct Crawler {
     scraper: Box<dyn Scraper>,
     concurrent_requests: usize,
     visited_urls: Arc<RwLock<HashSet<String>>>,
+    stats: Arc<StatsTracker>,
 }
 
 impl Crawler {
@@ -20,10 +22,16 @@ impl Crawler {
             "Initializing crawler with {} concurrent requests",
             concurrent_requests
         );
+        let stats = Arc::new(StatsTracker::new());
+
+        // Set the stats tracker in the scraper
+        scraper.set_stats(Arc::clone(&stats));
+
         Self {
             scraper,
             concurrent_requests,
             visited_urls: Arc::new(RwLock::new(HashSet::new())),
+            stats,
         }
     }
 
@@ -104,6 +112,8 @@ impl Crawler {
             spider.name(),
             self.visited_urls.read().len()
         );
+        self.stats.finish();
+        self.stats.print_summary();
         Ok(())
     }
 }

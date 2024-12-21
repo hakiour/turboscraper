@@ -3,6 +3,7 @@ use crate::scraper::Response;
 use std::fs;
 use std::path::{Path, PathBuf};
 use url::Url;
+use uuid::Uuid;
 
 pub struct Storage {
     output_dir: PathBuf,
@@ -40,8 +41,7 @@ impl Storage {
 
 fn sanitize_filename(url: &Url) -> String {
     let host = url.host_str().unwrap_or("unknown");
-    let path = url.path().replace('/', "_");
-    format!("{}{}", host, path)
+    format!("{}_{}", host, Uuid::now_v7())
         .replace([':', '?', '#', '&', '='], "_")
         .replace(".", "_")
 }

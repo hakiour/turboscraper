@@ -1,7 +1,9 @@
 use std::collections::HashMap;
+use std::sync::Arc;
+use std::sync::RwLock;
 
 use super::{Response, RetryConfig, Scraper};
-use crate::errors::ScraperResult;
+use crate::{errors::ScraperResult, StatsTracker};
 use async_trait::async_trait;
 use chrono::Utc;
 use reqwest::{header, Client};
@@ -13,6 +15,7 @@ const DEFAULT_USER_AGENT: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Appl
 pub struct HttpScraper {
     client: Client,
     retry_config: RetryConfig,
+    stats: Arc<RwLock<Arc<StatsTracker>>>,
 }
 
 impl HttpScraper {
@@ -30,6 +33,7 @@ impl HttpScraper {
         Self {
             client: Client::builder().default_headers(headers).build().unwrap(),
             retry_config,
+            stats: Arc::new(RwLock::new(Arc::new(StatsTracker::new()))),
         }
     }
 
@@ -47,6 +51,7 @@ impl HttpScraper {
         Self {
             client: Client::builder().default_headers(headers).build().unwrap(),
             retry_config,
+            stats: Arc::new(RwLock::new(Arc::new(StatsTracker::new()))),
         }
     }
 }
@@ -81,5 +86,14 @@ impl Scraper for HttpScraper {
 
     fn retry_config(&self) -> &RetryConfig {
         &self.retry_config
+    }
+
+    fn stats(&self) -> &StatsTracker {
+        static STATS: std::sync::OnceLock<StatsTracker> = std::sync::OnceLock::new();
+        STATS.get_or_init(|| (*self.stats.read().unwrap()).as_ref().clone())
+    }
+
+    fn set_stats(&self, stats: Arc<StatsTracker>) {
+        *self.stats.write().unwrap() = stats;
     }
 }

@@ -12,6 +12,7 @@ use url::Url;
 pub struct ExampleSpider {
     storage: Storage,
     max_depth: usize,
+    start_urls: Vec<Url>,
 }
 
 impl ExampleSpider {
@@ -19,11 +20,17 @@ impl ExampleSpider {
         Ok(Self {
             storage: Storage::new("output")?,
             max_depth: 2,
+            start_urls: vec![Url::parse("https://books.toscrape.com/").unwrap()],
         })
     }
 
-    pub fn max_depth(mut self, depth: usize) -> Self {
+    pub fn with_max_depth(mut self, depth: usize) -> Self {
         self.max_depth = depth;
+        self
+    }
+
+    pub fn with_start_urls(mut self, urls: Vec<Url>) -> Self {
+        self.start_urls = urls;
         self
     }
 }
@@ -35,7 +42,7 @@ impl Spider for ExampleSpider {
     }
 
     fn start_urls(&self) -> Vec<Url> {
-        vec![Url::parse("https://books.toscrape.com/").unwrap()]
+        self.start_urls.clone()
     }
 
     fn max_depth(&self) -> usize {
