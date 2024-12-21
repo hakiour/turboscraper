@@ -64,58 +64,58 @@ impl Crawler {
 
         while let Some(result) = futures.next().await {
             match result {
-                Ok(Ok(parse_result)) => {
-                    match parse_result {
-                        ParseResult::Continue(new_requests) => {
-                            debug!("Found {} new URLs to process", new_requests.len());
-                            for request in new_requests {
-                                if request.depth >= spider.max_depth() {
-                                    debug!("Skipping URL {} - max depth reached", request.url);
-                                    continue;
-                                }
-
-                                let url_str = request.url.to_string();
-                                if self.visited_urls.read().contains(&url_str) {
-                                    debug!("Skipping URL {} - already visited", url_str);
-                                    continue;
-                                }
-
-                                info!("Processing new URL: {} at depth {}", url_str, request.depth);
-                                if let Some(meta) = &request.meta {
-                                    trace!("Request metadata: {:?}", meta);
-                                }
-
-                                self.visited_urls.write().insert(url_str);
-
-                                if futures.len() >= self.concurrent_requests {
-                                    debug!("Reached concurrent request limit, waiting for slot");
-                                    futures.next().await;
-                                }
-
-                                let spider_clone = Arc::clone(&spider);
-                                let scraper = self.scraper.box_clone();
-                                let depth = request.depth;
-
-                                futures.push(spawn(async move {
-                                    let response = scraper.fetch(request.url.clone()).await?;
-                                    let spider_response = SpiderResponse {
-                                        response,
-                                        callback: request.callback.clone(),
-                                    };
-                                    spider_clone.parse(spider_response, request.url, depth).await
-                                }));
+                Ok(Ok(parse_result)) => match parse_result {
+                    ParseResult::Continue(new_requests) => {
+                        debug!("Found {} new URLs to process", new_requests.len());
+                        for request in new_requests {
+                            if request.depth >= spider.max_depth() {
+                                debug!("Skipping URL {} - max depth reached", request.url);
+                                continue;
                             }
-                        },
-                        ParseResult::Skip => {
-                            debug!("Skipping current URL");
-                            continue;
-                        },
-                        ParseResult::Stop => {
-                            info!("Spider requested stop");
-                            break;
+
+                            let url_str = request.url.to_string();
+                            if self.visited_urls.read().contains(&url_str) {
+                                debug!("Skipping URL {} - already visited", url_str);
+                                continue;
+                            }
+
+                            info!("Processing new URL: {} at depth {}", url_str, request.depth);
+                            if let Some(meta) = &request.meta {
+                                trace!("Request metadata: {:?}", meta);
+                            }
+
+                            self.visited_urls.write().insert(url_str);
+
+                            if futures.len() >= self.concurrent_requests {
+                                debug!("Reached concurrent request limit, waiting for slot");
+                                futures.next().await;
+                            }
+
+                            let spider_clone = Arc::clone(&spider);
+                            let scraper = self.scraper.box_clone();
+                            let depth = request.depth;
+
+                            futures.push(spawn(async move {
+                                let response = scraper.fetch(request.url.clone()).await?;
+                                let spider_response = SpiderResponse {
+                                    response,
+                                    callback: request.callback.clone(),
+                                };
+                                spider_clone
+                                    .parse(spider_response, request.url, depth)
+                                    .await
+                            }));
                         }
                     }
-                }
+                    ParseResult::Skip => {
+                        debug!("Skipping current URL");
+                        continue;
+                    }
+                    ParseResult::Stop => {
+                        info!("Spider requested stop");
+                        break;
+                    }
+                },
                 Ok(Err(e)) => warn!("Error processing request: {}", e),
                 Err(e) => warn!("Task error: {}", e),
             }

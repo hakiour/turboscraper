@@ -4,7 +4,7 @@ use url::Url;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum SpiderCallback {
-    Bootstrap,        // For initial page
+    Bootstrap,       // For initial page
     ParseItem,       // For parsing detail pages (e.g., product pages)
     ParsePagination, // For handling pagination
     Custom(String),  // For custom parsing methods
@@ -12,9 +12,9 @@ pub enum SpiderCallback {
 
 #[derive(Debug)]
 pub enum ParseResult {
-    Continue(Vec<Request>),  // Continue crawling with these requests
-    Skip,                    // Skip this URL but continue crawling
-    Stop,                    // Stop crawling
+    Continue(Vec<Request>), // Continue crawling with these requests
+    Skip,                   // Skip this URL but continue crawling
+    Stop,                   // Stop crawling
 }
 
 #[derive(Debug, Clone)]
@@ -31,8 +31,13 @@ pub trait Spider {
         2
     }
 
-    async fn parse(&self, response: SpiderResponse, url: Url, depth: usize) -> ScraperResult<ParseResult>;
-    
+    async fn parse(
+        &self,
+        response: SpiderResponse,
+        url: Url,
+        depth: usize,
+    ) -> ScraperResult<ParseResult>;
+
     fn get_initial_requests(&self) -> Vec<Request> {
         self.start_urls()
             .into_iter()

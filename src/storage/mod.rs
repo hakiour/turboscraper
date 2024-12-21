@@ -1,9 +1,49 @@
+use chrono::{DateTime, Utc};
+use serde_json::Value;
 use std::fs;
 use std::path::{Path, PathBuf};
 use url::Url;
 use uuid::Uuid;
 
-use crate::{Response, ScraperResult};
+use crate::ScraperResult;
+
+#[derive(Debug, Clone)]
+pub struct StorageData {
+    pub metadata: Metadata,
+    pub content: Content,
+}
+
+#[derive(Debug, Clone)]
+pub struct Metadata {
+    pub url: Url,
+    pub timestamp: DateTime<Utc>,
+    pub content_type: ContentType,
+    pub extra: Option<Value>,
+}
+
+#[derive(Debug, Clone)]
+pub enum Content {
+    Html(String),
+    Json(Value),
+    Text(String),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum ContentType {
+    Html,
+    Json,
+    Text,
+}
+
+impl std::fmt::Display for ContentType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ContentType::Html => write!(f, "html"),
+            ContentType::Json => write!(f, "json"),
+            ContentType::Text => write!(f, "text"),
+        }
+    }
+}
 
 pub struct Storage {
     output_dir: PathBuf,
@@ -16,27 +56,27 @@ impl Storage {
         Ok(Self { output_dir })
     }
 
-    pub fn save_response(&self, response: &Response) -> ScraperResult<PathBuf> {
-        let timestamp = response.timestamp.format("%Y%m%d_%H%M%S");
-        let filename = format!("{}_{}", timestamp, sanitize_filename(&response.url));
+    pub fn save(&self, data: StorageData) -> ScraperResult<PathBuf> {
+        let timestamp = data.metadata.timestamp.format("%Y%m%d_%H%M%S");
+        let filename = format!("{}_{}", timestamp, sanitize_filename(&data.metadata.url));
+        let path = self.output_dir.join(format!("{}.json", filename));
 
-        let json_path = self.output_dir.join(format!("{}.json", filename));
-        let data = serde_json::json!({
+        let json_data = serde_json::json!({
             "metadata": {
-                "url": response.url.to_string(),
-                "status": response.status,
-                "headers": response.headers,
-                "timestamp": response.timestamp,
+                "url": data.metadata.url.to_string(),
+                "timestamp": data.metadata.timestamp,
+                "content_type": data.metadata.content_type.to_string(),
+                "extra": data.metadata.extra,
             },
-            "content": {
-                "data": response.body,
-                "type": response.response_type.to_string()
+            "content": match data.content {
+                Content::Html(html) => html,
+                Content::Json(json) => json.to_string(),
+                Content::Text(text) => text,
             }
         });
 
-        fs::write(json_path.clone(), serde_json::to_string_pretty(&data)?)?;
-
-        Ok(json_path)
+        fs::write(&path, serde_json::to_string_pretty(&json_data)?)?;
+        Ok(path)
     }
 }
 

@@ -11,7 +11,7 @@ use turboscraper::{Crawler, ScraperResult};
 #[actix_rt::main]
 async fn main() -> ScraperResult<()> {
     env_logger::builder()
-        .filter_level(log::LevelFilter::Info)
+        .filter_level(log::LevelFilter::Warn)
         .filter_module("selectors", log::LevelFilter::Warn)
         .filter_module("html5ever", log::LevelFilter::Error)
         .init();
@@ -37,7 +37,7 @@ async fn main() -> ScraperResult<()> {
     );
 
     let scraper = Box::new(HttpScraper::with_config(retry_config));
-    let crawler: Crawler = Crawler::new(scraper, 30);
+    let crawler: Crawler = Crawler::new(scraper, 10);
     let spider = BookSpider::new()?.with_max_depth(999999);
 
     crawler.run(spider).await?;
