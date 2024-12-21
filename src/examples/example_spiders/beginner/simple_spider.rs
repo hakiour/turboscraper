@@ -1,34 +1,34 @@
-use crate::core::spider::{ParseResult, SpiderResponse};
+use crate::core::spider::{ParseResult, SpiderResponse, SpiderConfig};
 use crate::core::SpiderCallback;
-use crate::storage::ContentType;
-use crate::storage::Metadata;
-use crate::storage::StorageData;
-use crate::storage::{Content, Storage};
+use crate::storage::{IntoStorageData, StorageBackend};
 use crate::{Request, Response, ScraperResult, Spider};
 use async_trait::async_trait;
 use chrono::Utc;
-use log::{debug, error};
+use log::error;
 use scraper::{Html, Selector};
 use serde_json::{json, Value};
 use url::Url;
+use crate::storage::{StorageItem, StorageConfig};
 
 pub struct BookSpider {
-    max_depth: usize,
+    config: SpiderConfig,
     start_urls: Vec<Url>,
-    storage: Storage,
+    storage: Box<dyn StorageBackend>,
+    storage_config: Box<dyn StorageConfig>,
 }
 
 impl BookSpider {
-    pub fn new() -> ScraperResult<Self> {
+    pub async fn new(storage: Box<dyn StorageBackend>) -> ScraperResult<Self> {
         Ok(Self {
-            max_depth: 2,
+            config: SpiderConfig::default(),
             start_urls: vec![Url::parse("https://books.toscrape.com/").unwrap()],
-            storage: Storage::new("output")?,
+            storage_config: storage.create_config("books"),
+            storage,
         })
     }
 
-    pub fn with_max_depth(mut self, depth: usize) -> Self {
-        self.max_depth = depth;
+    pub fn with_config(mut self, config: SpiderConfig) -> Self {
+        self.config = config;
         self
     }
 
@@ -78,32 +78,24 @@ impl BookSpider {
         Ok(requests)
     }
 
-    fn parse_book(&self, response: Response, url: Url, depth: usize) -> ScraperResult<()> {
+    async fn parse_book(&self, response: Response, url: Url, depth: usize) -> ScraperResult<()> {
         let details = self.parse_book_details(&response.body);
-
-        let storage_data = StorageData {
-            metadata: Metadata {
-                url,
-                timestamp: Utc::now(),
-                content_type: ContentType::Json,
-                extra: Some(json!({
-                    "depth": depth,
-                    "parser": "book_details",
-                    "original_response": {
-                        "status": response.status,
-                        "headers": response.headers,
-                    }
-                })),
-            },
-            content: Content::Json(details),
+        
+        let item = StorageItem {
+            url,
+            timestamp: Utc::now(),
+            data: details.into_storage_data(),
+            metadata: Some(json!({
+                "depth": depth,
+                "parser": "book_details",
+                "response": {
+                    "status": response.status,
+                    "headers": response.headers,
+                }
+            })),
         };
 
-        let saved_path = self.storage.save(storage_data)?;
-        debug!(
-            "Saved book details to: {} (depth: {})",
-            saved_path.display(),
-            depth
-        );
+        self.storage.store_serialized(item, &*self.storage_config).await?;
         Ok(())
     }
 
@@ -165,16 +157,16 @@ impl BookSpider {
 
 #[async_trait]
 impl Spider for BookSpider {
+    fn config(&self) -> &SpiderConfig {
+        &self.config
+    }
+
     fn name(&self) -> String {
         "book_spider".to_string()
     }
 
     fn start_urls(&self) -> Vec<Url> {
         self.start_urls.clone()
-    }
-
-    fn max_depth(&self) -> usize {
-        self.max_depth
     }
 
     /// Main `parse` entrypoint
@@ -195,7 +187,8 @@ impl Spider for BookSpider {
             }
             // A single item page
             SpiderCallback::ParseItem => {
-                self.parse_book(spider_response.response, url, depth)?;
+                self.parse_book(spider_response.response, url, depth)
+                    .await?;
                 Ok(ParseResult::Skip)
             }
             // Any custom callback is currently unhandled

@@ -23,14 +23,27 @@ pub struct SpiderResponse {
     pub callback: SpiderCallback,
 }
 
+#[derive(Debug, Clone)]
+pub struct SpiderConfig {
+    pub max_depth: usize,
+    pub max_concurrency: usize,
+}
+
+impl Default for SpiderConfig {
+    fn default() -> Self {
+        Self {
+            max_depth: 2,
+            max_concurrency: 10,
+        }
+    }
+}
+
 #[async_trait]
 pub trait Spider {
     fn name(&self) -> String;
     fn start_urls(&self) -> Vec<Url>;
-    fn max_depth(&self) -> usize {
-        2
-    }
-
+    fn config(&self) -> &SpiderConfig;
+    
     async fn parse(
         &self,
         response: SpiderResponse,

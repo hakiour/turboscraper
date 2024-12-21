@@ -19,6 +19,9 @@ pub enum ScraperError {
 
     #[error("Middleware error: {0}")]
     MiddlewareError(String),
+
+    #[error("Storage error: {0}")]
+    StorageError(String),
 }
 
 pub type ScraperResult<T> = Result<T, ScraperError>;

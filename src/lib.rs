@@ -12,4 +12,4 @@ pub use http::{Request, Response};
 pub use parser::Parser;
 pub use scrapers::Scraper;
 pub use stats::StatsTracker;
-pub use storage::Storage;
+pub use storage::DiskStorage;

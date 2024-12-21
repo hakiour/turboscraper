@@ -12,25 +12,18 @@ use super::{ScraperResult, Spider};
 
 pub struct Crawler {
     scraper: Box<dyn Scraper>,
-    concurrent_requests: usize,
     visited_urls: Arc<RwLock<HashSet<String>>>,
     stats: Arc<StatsTracker>,
 }
 
 impl Crawler {
-    pub fn new(scraper: Box<dyn Scraper>, concurrent_requests: usize) -> Self {
-        info!(
-            "Initializing crawler with {} concurrent requests",
-            concurrent_requests
-        );
+    pub fn new(scraper: Box<dyn Scraper>) -> Self {
+        info!("Initializing crawler");
         let stats = Arc::new(StatsTracker::new());
-
-        // Set the stats tracker in the scraper
         scraper.set_stats(Arc::clone(&stats));
 
         Self {
             scraper,
-            concurrent_requests,
             visited_urls: Arc::new(RwLock::new(HashSet::new())),
             stats,
         }
@@ -41,7 +34,7 @@ impl Crawler {
         let mut futures = FuturesUnordered::new();
 
         info!("Starting spider: {}", spider.name());
-        debug!("Max depth: {}", spider.max_depth());
+        debug!("Max depth: {}", spider.config().max_depth);
 
         // Use spider's method to get initial requests
         for request in spider.get_initial_requests() {
@@ -68,7 +61,7 @@ impl Crawler {
                     ParseResult::Continue(new_requests) => {
                         debug!("Found {} new URLs to process", new_requests.len());
                         for request in new_requests {
-                            if request.depth >= spider.max_depth() {
+                            if request.depth >= spider.config().max_depth {
                                 debug!("Skipping URL {} - max depth reached", request.url);
                                 continue;
                             }
@@ -86,8 +79,9 @@ impl Crawler {
 
                             self.visited_urls.write().insert(url_str);
 
-                            if futures.len() >= self.concurrent_requests {
-                                debug!("Reached concurrent request limit, waiting for slot");
+                            if futures.len() >= spider.config().max_concurrency {
+                                debug!("Reached concurrent request limit {}, waiting for slot", 
+                                    spider.config().max_concurrency);
                                 futures.next().await;
                             }
 
