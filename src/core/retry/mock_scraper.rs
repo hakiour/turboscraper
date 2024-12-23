@@ -64,7 +64,7 @@ impl Scraper for MockScraper {
         }
 
         Ok(HttpResponse {
-            url: request.url,
+            url: request.url.clone(),
             status: response.status,
             headers: HashMap::new(),
             body: response.body.clone(),
@@ -73,6 +73,7 @@ impl Scraper for MockScraper {
             retry_history: HashMap::new(),
             meta: None,
             response_type: ResponseType::Html,
+            from_request: request,
         })
     }
 

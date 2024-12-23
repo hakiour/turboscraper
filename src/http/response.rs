@@ -4,6 +4,8 @@ use serde_json::Value;
 use std::collections::HashMap;
 use url::Url;
 
+use super::HttpRequest;
+
 #[derive(Debug, Clone)]
 pub struct HttpResponse {
     pub url: Url,
@@ -15,6 +17,7 @@ pub struct HttpResponse {
     pub retry_history: HashMap<RetryCategory, usize>,
     pub meta: Option<Value>,
     pub response_type: ResponseType,
+    pub from_request: HttpRequest,
 }
 
 #[derive(Debug, Clone)]

@@ -24,9 +24,10 @@ pub trait Scraper: Send + Sync {
         config: &SpiderConfig,
     ) -> ScraperResult<HttpResponse> {
         let start_time = Utc::now();
+        let url = request.url.clone();
 
         loop {
-            info!("Fetching URL: {} [{}]", request.url, request.method);
+            info!("Fetching URL: {} [{}]", url, request.method);
             let response = self.fetch_single(request.clone(), config).await?;
             debug!(
                 "Received response: status={}, body_length={}",
@@ -37,15 +38,15 @@ pub trait Scraper: Send + Sync {
             if let Some((category, delay)) =
                 config
                     .retry_config
-                    .should_retry(&request.url, response.status, &response.body)
+                    .should_retry(&url, response.status, &response.body)
             {
                 self.stats().record_retry(format!("{:?}", category));
-                let state = config.retry_config.get_retry_state(&request.url);
+                let state = config.retry_config.get_retry_state(&url);
                 let attempt = state.counts.get(&category).unwrap();
 
                 warn!(
                     "Retry triggered for URL: {} (category={:?}, attempt={}/{}, delay={:?})",
-                    request.url,
+                    url,
                     category,
                     attempt,
                     config
@@ -61,13 +62,13 @@ pub trait Scraper: Send + Sync {
                 continue;
             }
 
-            let state = config.retry_config.get_retry_state(&request.url);
+            let state = config.retry_config.get_retry_state(&url);
 
             info!(
                 "Request completed for URL: {} (total_retries={}, status={})",
-                request.url, state.total_retries, response.status
+                url, state.total_retries, response.status
             );
-            debug!("Retry history for {}: {:?}", request.url, state.counts);
+            debug!("Retry history for {}: {:?}", url, state.counts);
 
             let duration = Utc::now().signed_duration_since(start_time);
             self.stats()

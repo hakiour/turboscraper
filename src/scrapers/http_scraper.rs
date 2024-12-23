@@ -54,61 +54,6 @@ impl HttpScraper {
 
         self
     }
-
-    async fn fetch_with_method(
-        &self,
-        method: Method,
-        url: Url,
-        body: Option<String>,
-    ) -> ScraperResult<HttpResponse> {
-        let start_time = Utc::now();
-        let mut request = self.client.request(method.clone(), url.clone());
-
-        if let Some(body) = body {
-            request = request.body(body);
-        }
-
-        let response = request.send().await?;
-        let status = response.status().as_u16();
-        let headers = response.headers().clone();
-        let body = response.text().await?;
-        let end_time = Utc::now();
-
-        let headers: HashMap<String, String> = headers
-            .iter()
-            .map(|(k, v)| (k.to_string(), v.to_str().unwrap_or_default().to_string()))
-            .collect();
-
-        let meta = json!({
-            "request": {
-                "method": method.as_str(),
-            },
-            "response": {
-                "elapsed": (end_time - start_time).num_milliseconds(),
-                "content_length": body.len(),
-            }
-        });
-
-        Ok(HttpResponse {
-            url,
-            status,
-            headers,
-            body,
-            timestamp: start_time,
-            retry_count: 0,
-            retry_history: HashMap::new(),
-            meta: Some(meta),
-            response_type: ResponseType::Html,
-        })
-    }
-
-    pub async fn get(&self, url: Url) -> ScraperResult<HttpResponse> {
-        self.fetch_with_method(Method::GET, url, None).await
-    }
-
-    pub async fn post(&self, url: Url, body: String) -> ScraperResult<HttpResponse> {
-        self.fetch_with_method(Method::POST, url, Some(body)).await
-    }
 }
 
 #[async_trait]
@@ -119,6 +64,7 @@ impl Scraper for HttpScraper {
         config: &SpiderConfig,
     ) -> ScraperResult<HttpResponse> {
         let method = request.method.clone();
+        let from_request = request.clone();
         let mut req = self.client.request(method.clone(), request.url.clone());
 
         // Apply spider config headers
@@ -167,6 +113,7 @@ impl Scraper for HttpScraper {
             retry_history: HashMap::new(),
             meta: Some(meta),
             response_type: ResponseType::Html,
+            from_request,
         })
     }
 
@@ -185,6 +132,8 @@ impl Scraper for HttpScraper {
 
 #[cfg(test)]
 mod tests {
+    use crate::core::SpiderCallback;
+
     use super::*;
     use wiremock::matchers::{body_string, header, method, path};
     use wiremock::{Mock, MockServer, ResponseTemplate};
@@ -213,7 +162,13 @@ mod tests {
             .unwrap()
             .join("/test")
             .unwrap();
-        let response = scraper.get(url).await.unwrap();
+        let response = scraper
+            .fetch(
+                HttpRequest::new(url, SpiderCallback::Bootstrap, 0),
+                &SpiderConfig::default(),
+            )
+            .await
+            .unwrap();
 
         assert_eq!(response.status, 200);
         assert_eq!(response.body, "Hello, World!");
@@ -235,7 +190,14 @@ mod tests {
             .unwrap()
             .join("/test")
             .unwrap();
-        let response = scraper.post(url, body).await.unwrap();
+
+        let request = HttpRequest::new(url, SpiderCallback::Bootstrap, 0)
+            .with_method(Method::POST)
+            .with_body(body);
+        let response = scraper
+            .fetch(request, &SpiderConfig::default())
+            .await
+            .unwrap();
 
         assert_eq!(response.status, 201);
         assert_eq!(response.body, "{\"status\": \"created\"}");
@@ -255,7 +217,13 @@ mod tests {
             .unwrap()
             .join("/error")
             .unwrap();
-        let response = scraper.get(url).await.unwrap();
+        let response = scraper
+            .fetch(
+                HttpRequest::new(url, SpiderCallback::Bootstrap, 0),
+                &SpiderConfig::default(),
+            )
+            .await
+            .unwrap();
 
         assert_eq!(response.status, 404);
         assert_eq!(response.body, "Not Found");
@@ -275,7 +243,13 @@ mod tests {
             .await;
 
         let url = Url::parse(&mock_server.uri()).unwrap();
-        let response = scraper.get(url).await.unwrap();
+        let response = scraper
+            .fetch(
+                HttpRequest::new(url, SpiderCallback::Bootstrap, 0),
+                &SpiderConfig::default(),
+            )
+            .await
+            .unwrap();
 
         assert_eq!(response.status, 200);
     }
