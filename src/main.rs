@@ -42,6 +42,7 @@ async fn main() -> ScraperResult<()> {
         .with_retry(retry_config)
         .with_depth(999999)
         .with_concurrency(30)
+        .with_allow_url_revisit(false)
         .with_headers(vec![("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")]);
 
     let storage = create_storage(StorageType::Disk {

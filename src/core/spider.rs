@@ -32,6 +32,7 @@ pub struct SpiderConfig {
     pub max_concurrency: usize,
     pub retry_config: RetryConfig,
     pub headers: HashMap<String, String>,
+    pub allow_url_revisit: bool,
 }
 
 impl Default for SpiderConfig {
@@ -41,6 +42,7 @@ impl Default for SpiderConfig {
             max_concurrency: 10,
             retry_config: RetryConfig::default(),
             headers: HashMap::new(),
+            allow_url_revisit: false,
         }
     }
 }
@@ -65,6 +67,11 @@ impl SpiderConfig {
 
     pub fn with_concurrency(mut self, concurrency: usize) -> Self {
         self.max_concurrency = concurrency;
+        self
+    }
+
+    pub fn with_allow_url_revisit(mut self, allow: bool) -> Self {
+        self.allow_url_revisit = allow;
         self
     }
 }

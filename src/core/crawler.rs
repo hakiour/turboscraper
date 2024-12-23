@@ -69,9 +69,11 @@ impl Crawler {
                             }
 
                             let url_str = request.url.to_string();
-                            if self.visited_urls.read().contains(&url_str) {
-                                debug!("Skipping URL {} - already visited", url_str);
-                                continue;
+                            if !spider.config().allow_url_revisit {
+                                if self.visited_urls.read().contains(&url_str) {
+                                    debug!("Skipping URL {} - already visited", url_str);
+                                    continue;
+                                }
                             }
 
                             info!("Processing new URL: {} at depth {}", url_str, request.depth);
