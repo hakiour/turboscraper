@@ -41,7 +41,8 @@ async fn main() -> ScraperResult<()> {
     let spider_config = SpiderConfig::default()
         .with_retry(retry_config)
         .with_depth(999999)
-        .with_concurrency(30);
+        .with_concurrency(30)
+        .with_headers(vec![("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")]);
 
     let storage = create_storage(StorageType::Disk {
         path: "data".to_string(),
