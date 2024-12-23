@@ -1,8 +1,8 @@
 use super::base::{StorageBackend, StorageConfig, StorageItem};
 use crate::{ScraperError, ScraperResult};
 use async_trait::async_trait;
-use mongodb::{Client, Database, bson::doc};
 use erased_serde::Serialize as ErasedSerialize;
+use mongodb::{bson::doc, Client, Database};
 pub struct MongoStorage {
     db: Database,
 }
@@ -35,11 +35,12 @@ impl StorageBackend for MongoStorage {
     }
 
     async fn store_serialized(
-        &self, 
+        &self,
         item: StorageItem<Box<dyn ErasedSerialize + Send + Sync>>,
         config: &dyn StorageConfig,
     ) -> crate::ScraperResult<()> {
-        let config = config.as_any()
+        let config = config
+            .as_any()
             .downcast_ref::<MongoConfig>()
             .expect("Invalid config type");
 

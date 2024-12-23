@@ -43,7 +43,7 @@ pub trait Spider {
     fn name(&self) -> String;
     fn start_urls(&self) -> Vec<Url>;
     fn config(&self) -> &SpiderConfig;
-    
+
     async fn parse(
         &self,
         response: SpiderResponse,

@@ -1,9 +1,9 @@
 mod base;
 mod disk;
-mod mongo;
 mod factory;
+mod mongo;
 
-pub use base::{StorageBackend, StorageConfig, StorageItem, IntoStorageData};
+pub use base::{IntoStorageData, StorageBackend, StorageConfig, StorageItem};
 pub use disk::DiskStorage;
+pub use factory::{create_storage, StorageType};
 pub use mongo::MongoStorage;
-pub use factory::{StorageType, create_storage};

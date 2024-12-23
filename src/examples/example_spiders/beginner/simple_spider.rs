@@ -1,6 +1,7 @@
-use crate::core::spider::{ParseResult, SpiderResponse, SpiderConfig};
+use crate::core::spider::{ParseResult, SpiderConfig, SpiderResponse};
 use crate::core::SpiderCallback;
 use crate::storage::{IntoStorageData, StorageBackend};
+use crate::storage::{StorageConfig, StorageItem};
 use crate::{Request, Response, ScraperResult, Spider};
 use async_trait::async_trait;
 use chrono::Utc;
@@ -8,7 +9,6 @@ use log::error;
 use scraper::{Html, Selector};
 use serde_json::{json, Value};
 use url::Url;
-use crate::storage::{StorageItem, StorageConfig};
 
 pub struct BookSpider {
     config: SpiderConfig,
@@ -18,7 +18,7 @@ pub struct BookSpider {
 }
 
 impl BookSpider {
-    pub async fn new(storage: Box<dyn StorageBackend>) -> ScraperResult<Self> {
+    pub fn new(storage: Box<dyn StorageBackend>) -> ScraperResult<Self> {
         Ok(Self {
             config: SpiderConfig::default(),
             start_urls: vec![Url::parse("https://books.toscrape.com/").unwrap()],
@@ -80,7 +80,7 @@ impl BookSpider {
 
     async fn parse_book(&self, response: Response, url: Url, depth: usize) -> ScraperResult<()> {
         let details = self.parse_book_details(&response.body);
-        
+
         let item = StorageItem {
             url,
             timestamp: Utc::now(),
@@ -95,7 +95,9 @@ impl BookSpider {
             })),
         };
 
-        self.storage.store_serialized(item, &*self.storage_config).await?;
+        self.storage
+            .store_serialized(item, &*self.storage_config)
+            .await?;
         Ok(())
     }
 

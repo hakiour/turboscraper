@@ -6,11 +6,11 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use url::Url;
 
+use super::Scraper;
 use crate::core::retry::RetryConfig;
 use crate::http::ResponseType;
 use crate::Response;
 use crate::{ScraperResult, StatsTracker};
-use super::Scraper;
 const DEFAULT_USER_AGENT: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 
 #[derive(Clone)]
@@ -22,20 +22,19 @@ pub struct HttpScraper {
 
 impl HttpScraper {
     pub fn new() -> Self {
-        Self::with_config(RetryConfig::default())
-    }
-
-    pub fn with_config(retry_config: RetryConfig) -> Self {
-        let client = Client::builder()
-            .user_agent(DEFAULT_USER_AGENT)
-            .build()
-            .unwrap();
-
         Self {
-            client,
-            retry_config,
+            client: Client::builder()
+                .user_agent(DEFAULT_USER_AGENT)
+                .build()
+                .unwrap(),
+            retry_config: RetryConfig::default(),
             stats: Arc::new(StatsTracker::new()),
         }
+    }
+
+    pub fn with_config(mut self, retry_config: RetryConfig) -> Self {
+        self.retry_config = retry_config;
+        self
     }
 
     pub fn with_headers(mut self, headers: Vec<(&str, &str)>) -> Self {

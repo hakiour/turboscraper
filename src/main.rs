@@ -5,10 +5,10 @@ use turboscraper::core::retry::{
     BackoffPolicy, CategoryConfig, ContentRetryCondition, RetryCategory, RetryCondition,
     RetryConfig,
 };
-use turboscraper::scrapers::http_scraper::HttpScraper;
-use turboscraper::storage::{StorageType, create_storage};
-use turboscraper::{Crawler, ScraperResult};
 use turboscraper::core::spider::SpiderConfig;
+use turboscraper::scrapers::http_scraper::HttpScraper;
+use turboscraper::storage::{create_storage, StorageType};
+use turboscraper::{Crawler, ScraperResult};
 
 #[actix_rt::main]
 async fn main() -> ScraperResult<()> {
@@ -38,14 +38,15 @@ async fn main() -> ScraperResult<()> {
         },
     );
 
-    let scraper = Box::new(HttpScraper::with_config(retry_config));
+    let scraper = Box::new(HttpScraper::new().with_config(retry_config));
     let crawler = Crawler::new(scraper);
 
     // Choose storage type
     let storage = create_storage(StorageType::Disk {
-        path: "data".to_string()
-    }).await?;
-    
+        path: "data".to_string(),
+    })
+    .await?;
+
     // Or use MongoDB
     /*
     let storage = create_storage(StorageType::Mongo {
@@ -54,12 +55,10 @@ async fn main() -> ScraperResult<()> {
     }).await?;
     */
 
-    let spider = BookSpider::new(storage)
-        .await?
-        .with_config(SpiderConfig {
-            max_depth: 999999,
-            max_concurrency: 30,
-        });
+    let spider = BookSpider::new(storage).unwrap().with_config(SpiderConfig {
+        max_depth: 999999,
+        max_concurrency: 30,
+    });
 
     crawler.run(spider).await?;
 

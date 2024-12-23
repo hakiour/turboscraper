@@ -1,9 +1,9 @@
 use async_trait::async_trait;
-use serde::Serialize;
-use url::Url;
 use chrono::{DateTime, Utc};
-use serde_json::Value;
 use erased_serde::Serialize as ErasedSerialize;
+use serde::Serialize;
+use serde_json::Value;
+use url::Url;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct StorageItem<T: Serialize> {
@@ -20,9 +20,9 @@ pub trait StorageConfig: Send + Sync {
 #[async_trait]
 pub trait StorageBackend: Send + Sync {
     fn create_config(&self, collection_name: &str) -> Box<dyn StorageConfig>;
-    
+
     async fn store_serialized(
-        &self, 
+        &self,
         item: StorageItem<Box<dyn ErasedSerialize + Send + Sync>>,
         config: &dyn StorageConfig,
     ) -> crate::ScraperResult<()>;

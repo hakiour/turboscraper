@@ -81,8 +81,10 @@ impl Crawler {
                             self.visited_urls.write().insert(url_str);
 
                             if futures.len() >= spider.config().max_concurrency {
-                                debug!("Reached concurrent request limit {}, waiting for slot", 
-                                    spider.config().max_concurrency);
+                                debug!(
+                                    "Reached concurrent request limit {}, waiting for slot",
+                                    spider.config().max_concurrency
+                                );
                                 futures.next().await;
                             }
 

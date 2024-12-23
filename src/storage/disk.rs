@@ -1,10 +1,10 @@
 use super::base::{StorageBackend, StorageConfig, StorageItem};
 use crate::ScraperResult;
 use async_trait::async_trait;
-use std::path::{Path, PathBuf};
-use std::fs;
-use uuid::Uuid;
 use erased_serde::Serialize as ErasedSerialize;
+use std::fs;
+use std::path::{Path, PathBuf};
+use uuid::Uuid;
 
 pub struct DiskStorage {
     base_path: PathBuf,
@@ -44,7 +44,8 @@ impl StorageBackend for DiskStorage {
         item: StorageItem<Box<dyn ErasedSerialize + Send + Sync>>,
         config: &dyn StorageConfig,
     ) -> ScraperResult<()> {
-        let config = config.as_any()
+        let config = config
+            .as_any()
             .downcast_ref::<DiskConfig>()
             .expect("Invalid config type");
 
@@ -57,10 +58,10 @@ impl StorageBackend for DiskStorage {
         let host = item.url.host_str().unwrap_or("unknown");
         let prefix = config.filename_prefix.as_deref().unwrap_or("");
         let filename = format!("{}{}_{}.json", prefix, timestamp, Uuid::now_v7());
-        
+
         let final_path = path.join(host).join(filename);
         fs::create_dir_all(final_path.parent().unwrap())?;
-        
+
         let json = serde_json::json!({
             "url": item.url.to_string(),
             "timestamp": item.timestamp,
@@ -71,4 +72,4 @@ impl StorageBackend for DiskStorage {
         fs::write(final_path, serde_json::to_string_pretty(&json)?)?;
         Ok(())
     }
-} 
+}
