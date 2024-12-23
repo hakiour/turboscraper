@@ -8,7 +8,7 @@ use turboscraper::core::retry::{
 use turboscraper::core::spider::SpiderConfig;
 use turboscraper::scrapers::http_scraper::HttpScraper;
 use turboscraper::storage::{create_storage, StorageType};
-use turboscraper::{Crawler, ScraperResult};
+use turboscraper::{Crawler, ScraperResult, Spider};
 
 #[actix_rt::main]
 async fn main() -> ScraperResult<()> {
@@ -38,10 +38,11 @@ async fn main() -> ScraperResult<()> {
         },
     );
 
-    let scraper = Box::new(HttpScraper::new().with_config(retry_config));
-    let crawler = Crawler::new(scraper);
+    let spider_config = SpiderConfig::default()
+        .with_retry(retry_config)
+        .with_depth(999999)
+        .with_concurrency(30);
 
-    // Choose storage type
     let storage = create_storage(StorageType::Disk {
         path: "data".to_string(),
     })
@@ -55,11 +56,10 @@ async fn main() -> ScraperResult<()> {
     }).await?;
     */
 
-    let spider = BookSpider::new(storage).unwrap().with_config(SpiderConfig {
-        max_depth: 999999,
-        max_concurrency: 30,
-    });
+    let spider = BookSpider::new(storage).unwrap().with_config(spider_config);
 
+    let scraper = Box::new(HttpScraper::new());
+    let crawler = Crawler::new(scraper);
     crawler.run(spider).await?;
 
     Ok(())

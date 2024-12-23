@@ -1,4 +1,4 @@
-use crate::{Request, Response, ScraperResult};
+use crate::{http::HttpRequest, HttpResponse, ScraperResult};
 use async_trait::async_trait;
 use url::Url;
 
@@ -6,8 +6,8 @@ use url::Url;
 pub trait Parser: Send + Sync {
     async fn parse(
         &self,
-        response: Response,
+        response: HttpResponse,
         url: Url,
         depth: usize,
-    ) -> ScraperResult<Vec<Request>>;
+    ) -> ScraperResult<Vec<HttpRequest>>;
 }

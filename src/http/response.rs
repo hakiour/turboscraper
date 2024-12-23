@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use url::Url;
 
 #[derive(Debug, Clone)]
-pub struct Response {
+pub struct HttpResponse {
     pub url: Url,
     pub status: u16,
     pub headers: HashMap<String, String>,

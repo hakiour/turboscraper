@@ -2,6 +2,9 @@ use crate::core::retry::{
     BackoffPolicy, CategoryConfig, ContentRetryCondition, RetryCategory, RetryCondition,
     RetryConfig,
 };
+use crate::core::spider::SpiderConfig;
+use crate::core::SpiderCallback;
+use crate::http::HttpRequest;
 use crate::{
     core::retry::mock_scraper::{MockResponse, MockScraper},
     Scraper,
@@ -36,9 +39,18 @@ async fn test_rate_limit_retry() {
         },
     );
 
-    let scraper = MockScraper::new(retry_config, responses);
+    let scraper = MockScraper::new(responses);
     let url = Url::parse("https://example.com").unwrap();
-    let response = scraper.fetch(url).await.unwrap();
+    let response = scraper
+        .fetch(
+            HttpRequest::new(url, SpiderCallback::Bootstrap, 0),
+            &SpiderConfig {
+                retry_config,
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap();
 
     assert_eq!(response.status, 200);
     assert_eq!(response.body, "Success");
@@ -79,9 +91,18 @@ async fn test_bot_detection_retry() {
         },
     );
 
-    let scraper = MockScraper::new(retry_config, responses);
+    let scraper = MockScraper::new(responses);
     let url = Url::parse("https://example.com").unwrap();
-    let response = scraper.fetch(url).await.unwrap();
+    let response = scraper
+        .fetch(
+            HttpRequest::new(url, SpiderCallback::Bootstrap, 0),
+            &SpiderConfig {
+                retry_config,
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap();
 
     assert_eq!(response.status, 200);
     assert_eq!(response.body, "Welcome user");
@@ -125,9 +146,18 @@ async fn test_exponential_backoff() {
     );
 
     let start = std::time::Instant::now();
-    let scraper = MockScraper::new(retry_config, responses);
+    let scraper = MockScraper::new(responses);
     let url = Url::parse("https://example.com").unwrap();
-    let response = scraper.fetch(url).await.unwrap();
+    let response = scraper
+        .fetch(
+            HttpRequest::new(url, SpiderCallback::Bootstrap, 0),
+            &SpiderConfig {
+                retry_config,
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap();
 
     let elapsed = start.elapsed();
     assert_eq!(response.status, 200);
@@ -160,9 +190,18 @@ async fn test_max_retries_exceeded() {
         },
     );
 
-    let scraper = MockScraper::new(retry_config, responses);
+    let scraper = MockScraper::new(responses);
     let url = Url::parse("https://example.com").unwrap();
-    let response = scraper.fetch(url).await.unwrap();
+    let response = scraper
+        .fetch(
+            HttpRequest::new(url, SpiderCallback::Bootstrap, 0),
+            &SpiderConfig {
+                retry_config,
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap();
 
     assert_eq!(response.status, 429);
     assert_eq!(response.retry_count, 2);
@@ -217,9 +256,18 @@ async fn test_multiple_retry_categories() {
         },
     );
 
-    let scraper = MockScraper::new(retry_config, responses);
+    let scraper = MockScraper::new(responses);
     let url = Url::parse("https://example.com").unwrap();
-    let response = scraper.fetch(url).await.unwrap();
+    let response = scraper
+        .fetch(
+            HttpRequest::new(url, SpiderCallback::Bootstrap, 0),
+            &SpiderConfig {
+                retry_config,
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap();
 
     assert_eq!(response.status, 200);
     assert_eq!(response.body, "Success");
@@ -264,9 +312,18 @@ async fn test_regex_content_retry() {
         },
     );
 
-    let scraper = MockScraper::new(retry_config, responses);
+    let scraper = MockScraper::new(responses);
     let url = Url::parse("https://example.com").unwrap();
-    let response = scraper.fetch(url).await.unwrap();
+    let response = scraper
+        .fetch(
+            HttpRequest::new(url, SpiderCallback::Bootstrap, 0),
+            &SpiderConfig {
+                retry_config,
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap();
 
     assert_eq!(response.status, 200);
     assert_eq!(response.body, "Success");
@@ -307,9 +364,18 @@ async fn test_custom_category() {
         },
     );
 
-    let scraper = MockScraper::new(retry_config, responses);
+    let scraper = MockScraper::new(responses);
     let url = Url::parse("https://example.com").unwrap();
-    let response = scraper.fetch(url).await.unwrap();
+    let response = scraper
+        .fetch(
+            HttpRequest::new(url, SpiderCallback::Bootstrap, 0),
+            &SpiderConfig {
+                retry_config,
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap();
 
     assert_eq!(response.status, 200);
     assert_eq!(response.body, "Success");
@@ -331,9 +397,18 @@ async fn test_no_matching_retry_condition() {
     }];
 
     let retry_config = RetryConfig::default();
-    let scraper = MockScraper::new(retry_config, responses);
+    let scraper = MockScraper::new(responses);
     let url = Url::parse("https://example.com").unwrap();
-    let response = scraper.fetch(url).await.unwrap();
+    let response = scraper
+        .fetch(
+            HttpRequest::new(url, SpiderCallback::Bootstrap, 0),
+            &SpiderConfig {
+                retry_config,
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap();
 
     assert_eq!(response.status, 404);
     assert_eq!(response.retry_count, 0);

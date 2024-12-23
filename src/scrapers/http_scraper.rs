@@ -7,16 +7,16 @@ use std::sync::Arc;
 use url::Url;
 
 use super::Scraper;
-use crate::core::retry::RetryConfig;
+use crate::core::spider::SpiderConfig;
+use crate::http::request::HttpRequest;
 use crate::http::ResponseType;
-use crate::Response;
+use crate::HttpResponse;
 use crate::{ScraperResult, StatsTracker};
 const DEFAULT_USER_AGENT: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 
 #[derive(Clone)]
 pub struct HttpScraper {
     client: Client,
-    retry_config: RetryConfig,
     stats: Arc<StatsTracker>,
 }
 
@@ -27,14 +27,8 @@ impl HttpScraper {
                 .user_agent(DEFAULT_USER_AGENT)
                 .build()
                 .unwrap(),
-            retry_config: RetryConfig::default(),
             stats: Arc::new(StatsTracker::new()),
         }
-    }
-
-    pub fn with_config(mut self, retry_config: RetryConfig) -> Self {
-        self.retry_config = retry_config;
-        self
     }
 
     pub fn with_headers(mut self, headers: Vec<(&str, &str)>) -> Self {
@@ -66,7 +60,7 @@ impl HttpScraper {
         method: Method,
         url: Url,
         body: Option<String>,
-    ) -> ScraperResult<Response> {
+    ) -> ScraperResult<HttpResponse> {
         let start_time = Utc::now();
         let mut request = self.client.request(method.clone(), url.clone());
 
@@ -95,7 +89,7 @@ impl HttpScraper {
             }
         });
 
-        Ok(Response {
+        Ok(HttpResponse {
             url,
             status,
             headers,
@@ -108,27 +102,76 @@ impl HttpScraper {
         })
     }
 
-    pub async fn get(&self, url: Url) -> ScraperResult<Response> {
+    pub async fn get(&self, url: Url) -> ScraperResult<HttpResponse> {
         self.fetch_with_method(Method::GET, url, None).await
     }
 
-    pub async fn post(&self, url: Url, body: String) -> ScraperResult<Response> {
+    pub async fn post(&self, url: Url, body: String) -> ScraperResult<HttpResponse> {
         self.fetch_with_method(Method::POST, url, Some(body)).await
     }
 }
 
 #[async_trait]
 impl Scraper for HttpScraper {
-    async fn fetch_single(&self, url: Url) -> ScraperResult<Response> {
-        self.get(url).await
+    async fn fetch_single(
+        &self,
+        request: HttpRequest,
+        config: &SpiderConfig,
+    ) -> ScraperResult<HttpResponse> {
+        let method = request.method.clone();
+        let mut req = self.client.request(method.clone(), request.url.clone());
+
+        // Apply spider config headers
+        for (key, value) in &config.headers {
+            req = req.header(key, value);
+        }
+
+        // Apply request-specific headers
+        for (key, value) in &request.headers {
+            req = req.header(key, value);
+        }
+
+        if let Some(body) = request.body {
+            req = req.body(body);
+        }
+
+        let start_time = Utc::now();
+        let response = req.send().await?;
+        let status = response.status().as_u16();
+        let headers = response.headers().clone();
+        let body = response.text().await?;
+        let end_time = Utc::now();
+
+        let headers: HashMap<String, String> = headers
+            .iter()
+            .map(|(k, v)| (k.to_string(), v.to_str().unwrap_or_default().to_string()))
+            .collect();
+
+        let meta = json!({
+            "request": {
+                "method": method.as_str(),
+            },
+            "response": {
+                "elapsed": (end_time - start_time).num_milliseconds(),
+                "content_length": body.len(),
+            }
+        });
+
+        Ok(HttpResponse {
+            url: request.url,
+            status,
+            headers,
+            body,
+            timestamp: start_time,
+            retry_count: 0,
+            retry_history: HashMap::new(),
+            meta: Some(meta),
+            response_type: ResponseType::Html,
+        })
     }
 
     fn box_clone(&self) -> Box<dyn Scraper> {
         Box::new(self.clone())
-    }
-
-    fn retry_config(&self) -> &RetryConfig {
-        &self.retry_config
     }
 
     fn stats(&self) -> &StatsTracker {

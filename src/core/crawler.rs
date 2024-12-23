@@ -42,12 +42,13 @@ impl Crawler {
             let spider_clone = Arc::clone(&spider);
             let scraper = self.scraper.box_clone();
             let visited = Arc::clone(&self.visited_urls);
+            let config = spider.config().clone();
 
             info!("Adding start URL: {}", request.url);
             visited.write().insert(request.url.to_string());
 
             futures.push(spawn(async move {
-                let response = scraper.fetch(request.url.clone()).await?;
+                let response = scraper.fetch(request.clone(), &config).await?;
                 let spider_response = SpiderResponse {
                     response,
                     callback: request.callback.clone(),
@@ -91,9 +92,10 @@ impl Crawler {
                             let spider_clone = Arc::clone(&spider);
                             let scraper = self.scraper.box_clone();
                             let depth = request.depth;
+                            let config = spider.config().clone();
 
                             futures.push(spawn(async move {
-                                let response = scraper.fetch(request.url.clone()).await?;
+                                let response = scraper.fetch(request.clone(), &config).await?;
                                 let spider_response = SpiderResponse {
                                     response,
                                     callback: request.callback.clone(),

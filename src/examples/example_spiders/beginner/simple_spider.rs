@@ -1,8 +1,9 @@
 use crate::core::spider::{ParseResult, SpiderConfig, SpiderResponse};
 use crate::core::SpiderCallback;
+use crate::http::{HttpRequest, HttpResponse};
 use crate::storage::{IntoStorageData, StorageBackend};
 use crate::storage::{StorageConfig, StorageItem};
-use crate::{Request, Response, ScraperResult, Spider};
+use crate::{ScraperResult, Spider};
 use async_trait::async_trait;
 use chrono::Utc;
 use log::error;
@@ -27,17 +28,12 @@ impl BookSpider {
         })
     }
 
-    pub fn with_config(mut self, config: SpiderConfig) -> Self {
-        self.config = config;
-        self
-    }
-
     fn parse_book_list(
         &self,
-        response: Response,
+        response: HttpResponse,
         url: Url,
         depth: usize,
-    ) -> ScraperResult<Vec<Request>> {
+    ) -> ScraperResult<Vec<HttpRequest>> {
         let document = Html::parse_document(&response.body);
         let book_selector = Selector::parse("article.product_pod h3 a").unwrap();
 
@@ -45,7 +41,7 @@ impl BookSpider {
         for element in document.select(&book_selector) {
             if let Some(href) = element.value().attr("href") {
                 if let Ok(new_url) = url.join(href) {
-                    let req = Request::new(new_url, SpiderCallback::ParseItem, depth + 1)
+                    let req = HttpRequest::new(new_url, SpiderCallback::ParseItem, depth + 1)
                         .with_meta(json!({
                             "parent_url": url.to_string(),
                             "title": element.text().collect::<String>(),
@@ -59,7 +55,12 @@ impl BookSpider {
         Ok(requests)
     }
 
-    fn next_page(&self, response: Response, url: Url, depth: usize) -> ScraperResult<Vec<Request>> {
+    fn next_page(
+        &self,
+        response: HttpResponse,
+        url: Url,
+        depth: usize,
+    ) -> ScraperResult<Vec<HttpRequest>> {
         let document = Html::parse_document(&response.body);
         let next_page_selector = Selector::parse("li.next a").unwrap();
         let mut requests = Vec::new();
@@ -67,7 +68,7 @@ impl BookSpider {
         if let Some(next_element) = document.select(&next_page_selector).next() {
             if let Some(href) = next_element.value().attr("href") {
                 if let Ok(next_url) = url.join(href) {
-                    requests.push(Request::new(
+                    requests.push(HttpRequest::new(
                         next_url,
                         SpiderCallback::ParsePagination,
                         depth,
@@ -78,7 +79,12 @@ impl BookSpider {
         Ok(requests)
     }
 
-    async fn parse_book(&self, response: Response, url: Url, depth: usize) -> ScraperResult<()> {
+    async fn parse_book(
+        &self,
+        response: HttpResponse,
+        url: Url,
+        depth: usize,
+    ) -> ScraperResult<()> {
         let details = self.parse_book_details(&response.body);
 
         let item = StorageItem {
@@ -162,7 +168,9 @@ impl Spider for BookSpider {
     fn config(&self) -> &SpiderConfig {
         &self.config
     }
-
+    fn set_config(&mut self, config: SpiderConfig) {
+        self.config = config;
+    }
     fn name(&self) -> String {
         "book_spider".to_string()
     }

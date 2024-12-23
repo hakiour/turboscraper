@@ -1,9 +1,11 @@
 #[cfg(test)]
-use crate::core::retry::RetryConfig;
+use crate::core::spider::SpiderConfig;
+#[cfg(test)]
+use crate::http::HttpRequest;
 #[cfg(test)]
 use crate::http::ResponseType;
 #[cfg(test)]
-use crate::{Response, Scraper, ScraperResult, StatsTracker};
+use crate::{HttpResponse, Scraper, ScraperResult, StatsTracker};
 #[cfg(test)]
 use async_trait::async_trait;
 #[cfg(test)]
@@ -16,8 +18,6 @@ use std::sync::Arc;
 use std::sync::RwLock;
 #[cfg(test)]
 use tokio::time::sleep;
-#[cfg(test)]
-use url::Url;
 
 #[cfg(test)]
 #[derive(Clone)]
@@ -30,7 +30,6 @@ pub struct MockResponse {
 #[cfg(test)]
 #[derive(Clone)]
 pub struct MockScraper {
-    retry_config: RetryConfig,
     responses: Arc<Vec<MockResponse>>,
     current_response: Arc<std::sync::atomic::AtomicUsize>,
     stats: Arc<RwLock<Arc<StatsTracker>>>,
@@ -38,9 +37,8 @@ pub struct MockScraper {
 
 #[cfg(test)]
 impl MockScraper {
-    pub fn new(retry_config: RetryConfig, responses: Vec<MockResponse>) -> Self {
+    pub fn new(responses: Vec<MockResponse>) -> Self {
         Self {
-            retry_config,
             responses: Arc::new(responses),
             current_response: Arc::new(std::sync::atomic::AtomicUsize::new(0)),
             stats: Arc::new(RwLock::new(Arc::new(StatsTracker::new()))),
@@ -51,7 +49,11 @@ impl MockScraper {
 #[cfg(test)]
 #[async_trait]
 impl Scraper for MockScraper {
-    async fn fetch_single(&self, url: Url) -> ScraperResult<Response> {
+    async fn fetch_single(
+        &self,
+        request: HttpRequest,
+        _: &SpiderConfig,
+    ) -> ScraperResult<HttpResponse> {
         let index = self
             .current_response
             .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
@@ -61,8 +63,8 @@ impl Scraper for MockScraper {
             sleep(delay).await;
         }
 
-        Ok(Response {
-            url,
+        Ok(HttpResponse {
+            url: request.url,
             status: response.status,
             headers: HashMap::new(),
             body: response.body.clone(),
@@ -78,9 +80,6 @@ impl Scraper for MockScraper {
         Box::new(self.clone())
     }
 
-    fn retry_config(&self) -> &RetryConfig {
-        &self.retry_config
-    }
     fn stats(&self) -> &StatsTracker {
         static STATS: std::sync::OnceLock<StatsTracker> = std::sync::OnceLock::new();
         STATS.get_or_init(|| (*self.stats.read().unwrap()).as_ref().clone())
