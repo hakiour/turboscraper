@@ -86,7 +86,7 @@ impl Scraper for MockScraper {
         STATS.get_or_init(|| (*self.stats.read().unwrap()).as_ref().clone())
     }
 
-    fn set_stats(&self, stats: Arc<StatsTracker>) {
+    fn set_stats(&mut self, stats: Arc<StatsTracker>) {
         *self.stats.write().unwrap() = stats;
     }
 }

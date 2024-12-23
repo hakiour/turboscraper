@@ -13,7 +13,7 @@ pub trait Scraper: Send + Sync {
     fn box_clone(&self) -> Box<dyn Scraper>;
     fn retry_config(&self) -> &RetryConfig;
     fn stats(&self) -> &StatsTracker;
-    fn set_stats(&self, stats: Arc<StatsTracker>);
+    fn set_stats(&mut self, stats: Arc<StatsTracker>);
 
     async fn fetch(&self, url: Url) -> ScraperResult<Response> {
         let start_time = Utc::now();

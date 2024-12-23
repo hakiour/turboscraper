@@ -20,6 +20,7 @@ impl Crawler {
     pub fn new(scraper: Box<dyn Scraper>) -> Self {
         info!("Initializing crawler");
         let stats = Arc::new(StatsTracker::new());
+        let mut scraper = scraper;
         scraper.set_stats(Arc::clone(&stats));
 
         Self {
