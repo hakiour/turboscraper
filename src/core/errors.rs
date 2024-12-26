@@ -1,5 +1,7 @@
 use thiserror::Error;
 
+use super::retry::StorageErrorType;
+
 #[derive(Error, Debug)]
 pub enum ScraperError {
     #[error("HTTP error: {0}")]
@@ -21,7 +23,7 @@ pub enum ScraperError {
     MiddlewareError(String),
 
     #[error("Storage error: {0}")]
-    StorageError(String),
+    StorageError(StorageErrorType),
 }
 
 pub type ScraperResult<T> = Result<T, ScraperError>;

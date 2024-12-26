@@ -51,7 +51,7 @@ impl RetryConfig {
             }
 
             for condition in &config.conditions {
-                if check_condition(condition, status, content) {
+                if retry_condition_should_apply(condition, status, content) {
                     let new_count = current_retries + 1;
                     state.counts.insert(category.clone(), new_count);
                     state.total_retries += 1;

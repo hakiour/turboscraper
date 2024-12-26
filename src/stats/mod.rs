@@ -1,110 +1,124 @@
-use chrono::{DateTime, Duration, Utc};
-use parking_lot::RwLock;
-use serde::Serialize;
+use chrono::Duration;
 use std::collections::HashMap;
-use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::time::Instant;
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Default)]
 pub struct ScrapingStats {
-    pub start_time: DateTime<Utc>,
-    pub end_time: Option<DateTime<Utc>>,
-    pub total_requests: usize,
-    pub successful_requests: usize,
-    pub failed_requests: usize,
-    pub retry_count: usize,
-    pub bytes_downloaded: usize,
-    pub status_codes: HashMap<u16, usize>,
-    pub retry_reasons: HashMap<String, usize>,
-    pub average_response_time: f64, // in milliseconds
+    pub duration: Duration,
+    pub total_requests: u64,
+    pub successful_requests: u64,
+    pub failed_requests: u64,
+    pub retry_count: u64,
+    pub data_downloaded: f64,
+    pub total_response_time: u64,
+    pub status_codes: HashMap<u16, u64>,
+    pub retry_reasons: HashMap<String, u64>,
+    pub storage_errors: u64,
 }
 
-#[derive(Debug, Clone)]
 pub struct StatsTracker {
-    stats: Arc<RwLock<ScrapingStats>>,
+    start_time: Instant,
+    total_requests: AtomicU64,
+    successful_requests: AtomicU64,
+    failed_requests: AtomicU64,
+    retry_count: AtomicU64,
+    data_downloaded: AtomicU64,
+    total_response_time: AtomicU64,
+    status_codes: parking_lot::RwLock<HashMap<u16, u64>>,
+    retry_reasons: parking_lot::RwLock<HashMap<String, u64>>,
+    storage_errors: AtomicU64,
 }
 
 impl StatsTracker {
     pub fn new() -> Self {
         Self {
-            stats: Arc::new(RwLock::new(ScrapingStats {
-                start_time: Utc::now(),
-                end_time: None,
-                total_requests: 0,
-                successful_requests: 0,
-                failed_requests: 0,
-                retry_count: 0,
-                bytes_downloaded: 0,
-                status_codes: HashMap::new(),
-                retry_reasons: HashMap::new(),
-                average_response_time: 0.0,
-            })),
+            start_time: Instant::now(),
+            total_requests: AtomicU64::new(0),
+            successful_requests: AtomicU64::new(0),
+            failed_requests: AtomicU64::new(0),
+            retry_count: AtomicU64::new(0),
+            data_downloaded: AtomicU64::new(0),
+            total_response_time: AtomicU64::new(0),
+            status_codes: parking_lot::RwLock::new(HashMap::new()),
+            retry_reasons: parking_lot::RwLock::new(HashMap::new()),
+            storage_errors: AtomicU64::new(0),
         }
+    }
+
+    pub fn increment_storage_errors(&self) {
+        self.storage_errors.fetch_add(1, Ordering::Relaxed);
+        self.failed_requests.fetch_add(1, Ordering::Relaxed);
+        self.successful_requests.fetch_sub(1, Ordering::Relaxed);
     }
 
     pub fn record_request(&self, status: u16, size: usize, duration: Duration) {
-        let mut stats = self.stats.write();
-        stats.total_requests += 1;
+        self.total_requests.fetch_add(1, Ordering::Relaxed);
 
         if status < 400 {
-            stats.successful_requests += 1;
+            self.successful_requests.fetch_add(1, Ordering::Relaxed);
         } else {
-            stats.failed_requests += 1;
+            self.failed_requests.fetch_add(1, Ordering::Relaxed);
         }
 
-        *stats.status_codes.entry(status).or_insert(0) += 1;
-        stats.bytes_downloaded += size;
+        let mut status_codes = self.status_codes.write();
+        *status_codes.entry(status).or_insert(0) += 1;
 
-        // Update average response time
-        let current_total = stats.average_response_time * (stats.total_requests - 1) as f64;
-        let new_duration = duration.num_milliseconds() as f64;
-        stats.average_response_time = (current_total + new_duration) / stats.total_requests as f64;
+        self.data_downloaded
+            .fetch_add(size as u64, Ordering::Relaxed);
+        self.total_response_time
+            .fetch_add(duration.num_milliseconds() as u64, Ordering::Relaxed);
     }
 
     pub fn record_retry(&self, category: String) {
-        let mut stats = self.stats.write();
-        stats.retry_count += 1;
-        *stats.retry_reasons.entry(category).or_insert(0) += 1;
-    }
-
-    pub fn finish(&self) {
-        self.stats.write().end_time = Some(Utc::now());
+        self.retry_count.fetch_add(1, Ordering::Relaxed);
+        let mut retry_reasons = self.retry_reasons.write();
+        *retry_reasons.entry(category).or_insert(0) += 1;
     }
 
     pub fn get_stats(&self) -> ScrapingStats {
-        self.stats.read().clone()
+        ScrapingStats {
+            duration: chrono::Duration::from_std(self.start_time.elapsed()).unwrap(),
+            total_requests: self.total_requests.load(Ordering::Relaxed),
+            successful_requests: self.successful_requests.load(Ordering::Relaxed),
+            failed_requests: self.failed_requests.load(Ordering::Relaxed),
+            retry_count: self.retry_count.load(Ordering::Relaxed),
+            data_downloaded: (self.data_downloaded.load(Ordering::Relaxed) as f64)
+                / (1024.0 * 1024.0),
+            total_response_time: self.total_response_time.load(Ordering::Relaxed),
+            status_codes: self.status_codes.read().clone(),
+            retry_reasons: self.retry_reasons.read().clone(),
+            storage_errors: self.storage_errors.load(Ordering::Relaxed),
+        }
     }
 
     pub fn print_summary(&self) {
-        let stats = self.stats.read();
-        let duration = stats
-            .end_time
-            .unwrap_or_else(Utc::now)
-            .signed_duration_since(stats.start_time);
-
+        let stats = self.get_stats();
         println!("\nScraping Statistics:");
         println!("===================");
-        println!("Duration: {} seconds", duration.num_seconds());
+        println!("Duration: {} seconds", stats.duration.num_seconds());
         println!("Total Requests: {}", stats.total_requests);
         println!("Successful Requests: {}", stats.successful_requests);
         println!("Failed Requests: {}", stats.failed_requests);
+        println!("Storage Errors: {}", stats.storage_errors);
         println!("Retry Count: {}", stats.retry_count);
-        println!(
-            "Data Downloaded: {:.2} MB",
-            stats.bytes_downloaded as f64 / 1_000_000.0
-        );
-        println!(
-            "Average Response Time: {:.2}ms",
-            stats.average_response_time
-        );
+        println!("Data Downloaded: {:.2} MB", stats.data_downloaded);
 
-        println!("\nStatus Codes:");
-        for (code, count) in &stats.status_codes {
-            println!("  {}: {}", code, count);
+        if stats.total_requests > 0 {
+            let avg_response_time = stats.total_response_time as f64 / stats.total_requests as f64;
+            println!("Average Response Time: {:.2}ms", avg_response_time);
+        }
+
+        if !stats.status_codes.is_empty() {
+            println!("\nStatus Codes:");
+            for (code, count) in stats.status_codes.iter() {
+                println!("  {}: {}", code, count);
+            }
         }
 
         if !stats.retry_reasons.is_empty() {
             println!("\nRetry Reasons:");
-            for (reason, count) in &stats.retry_reasons {
+            for (reason, count) in stats.retry_reasons.iter() {
                 println!("  {}: {}", reason, count);
             }
         }

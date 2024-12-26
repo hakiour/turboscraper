@@ -1,17 +1,20 @@
 use super::base::{StorageBackend, StorageConfig, StorageItem};
-use crate::{ScraperError, ScraperResult};
+use crate::{core::retry::StorageErrorType, ScraperError, ScraperResult};
 use async_trait::async_trait;
 use erased_serde::Serialize as ErasedSerialize;
-use mongodb::{bson::doc, Client, Database};
+use mongodb::{bson::doc, Client};
 pub struct MongoStorage {
-    db: Database,
+    database_name: String,
+    client: Client,
 }
 
 impl MongoStorage {
-    pub async fn new(connection_string: &str, database: &str) -> ScraperResult<Self> {
+    pub async fn new(connection_string: &str, database_name: &str) -> ScraperResult<Self> {
         let client = Client::with_uri_str(connection_string).await?;
-        let db = client.database(database);
-        Ok(Self { db })
+        Ok(Self {
+            database_name: database_name.to_string(),
+            client,
+        })
     }
 }
 
@@ -44,7 +47,11 @@ impl StorageBackend for MongoStorage {
             .downcast_ref::<MongoConfig>()
             .expect("Invalid config type");
 
-        let collection = self.db.collection(&config.collection);
+        let collection = self
+            .client
+            .database(&self.database_name)
+            .collection(&config.collection);
+
         let doc = doc! {
             "url": item.url.to_string(),
             "timestamp": item.timestamp.to_rfc3339(),
@@ -58,12 +65,12 @@ impl StorageBackend for MongoStorage {
 
 impl From<mongodb::bson::ser::Error> for ScraperError {
     fn from(err: mongodb::bson::ser::Error) -> Self {
-        ScraperError::StorageError(err.to_string())
+        ScraperError::StorageError(StorageErrorType::MongoError(err.to_string()))
     }
 }
 
 impl From<mongodb::error::Error> for ScraperError {
     fn from(err: mongodb::error::Error) -> Self {
-        ScraperError::StorageError(err.to_string())
+        ScraperError::StorageError(StorageErrorType::MongoError(err.to_string()))
     }
 }

@@ -83,7 +83,7 @@ impl Scraper for MockScraper {
 
     fn stats(&self) -> &StatsTracker {
         static STATS: std::sync::OnceLock<StatsTracker> = std::sync::OnceLock::new();
-        STATS.get_or_init(|| (*self.stats.read().unwrap()).as_ref().clone())
+        STATS.get_or_init(StatsTracker::new)
     }
 
     fn set_stats(&mut self, stats: Arc<StatsTracker>) {

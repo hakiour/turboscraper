@@ -1,10 +1,9 @@
 use async_trait::async_trait;
 use chrono::Utc;
-use reqwest::{header, Client, Method};
+use reqwest::{header, Client};
 use serde_json::json;
 use std::collections::HashMap;
 use std::sync::Arc;
-use url::Url;
 
 use super::Scraper;
 use crate::core::spider::SpiderConfig;
@@ -135,6 +134,8 @@ mod tests {
     use crate::core::SpiderCallback;
 
     use super::*;
+    use reqwest::Method;
+    use url::Url;
     use wiremock::matchers::{body_string, header, method, path};
     use wiremock::{Mock, MockServer, ResponseTemplate};
 

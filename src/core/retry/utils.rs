@@ -2,7 +2,11 @@ use super::types::*;
 use regex::Regex;
 use std::time::Duration;
 
-pub fn check_condition(condition: &RetryCondition, status: u16, content: &str) -> bool {
+pub fn retry_condition_should_apply(
+    condition: &RetryCondition,
+    status: u16,
+    content: &str,
+) -> bool {
     match condition {
         RetryCondition::StatusCode(code) => *code == status,
         RetryCondition::Content(content_condition) => {
@@ -16,6 +20,10 @@ pub fn check_condition(condition: &RetryCondition, status: u16, content: &str) -
                     .contains(&content_condition.pattern.to_lowercase())
             }
         }
+        RetryCondition::StorageError(error_type) => match error_type {
+            StorageErrorType::MongoError(_) => true, // Match any MongoDB error
+            StorageErrorType::DiskError(_) => true,  // Match any disk error
+        },
     }
 }
 

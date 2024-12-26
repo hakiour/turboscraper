@@ -10,9 +10,25 @@ pub struct ContentRetryCondition {
 }
 
 #[derive(Debug, Clone)]
+pub enum StorageErrorType {
+    MongoError(String),
+    DiskError(String),
+}
+
+#[derive(Debug, Clone)]
 pub enum RetryCondition {
     StatusCode(u16),
     Content(ContentRetryCondition),
+    StorageError(StorageErrorType),
+}
+
+impl std::fmt::Display for StorageErrorType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            StorageErrorType::MongoError(e) => write!(f, "MongoDB error: {}", e),
+            StorageErrorType::DiskError(e) => write!(f, "Disk error: {}", e),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -31,6 +47,7 @@ pub enum RetryCategory {
     Blacklisted,    // IP blocked messages
     Authentication, // 401, 403
     Custom(String), // Custom category
+    StorageError,   // Storage-related errors
 }
 
 #[derive(Debug, Clone)]

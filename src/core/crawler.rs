@@ -1,6 +1,6 @@
 use crate::core::spider::{ParseResult, SpiderResponse};
 use crate::stats::StatsTracker;
-use crate::Scraper;
+use crate::{Scraper, ScraperError};
 use actix_rt::spawn;
 use futures::stream::{FuturesUnordered, StreamExt};
 use log::{debug, info, trace, warn};
@@ -117,7 +117,17 @@ impl Crawler {
                         break;
                     }
                 },
-                Ok(Err(e)) => warn!("Error processing request: {}", e),
+                Ok(Err(e)) => {
+                    warn!("Error processing request: {}", e);
+                    match e {
+                        ScraperError::StorageError(_) => {
+                            self.stats.increment_storage_errors();
+                        }
+                        _ => {
+                            // Handle other types of errors
+                        }
+                    }
+                }
                 Err(e) => warn!("Task error: {}", e),
             }
         }
@@ -127,7 +137,6 @@ impl Crawler {
             spider.name(),
             self.visited_urls.read().len()
         );
-        self.stats.finish();
         self.stats.print_summary();
         Ok(())
     }
