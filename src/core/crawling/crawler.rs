@@ -1,12 +1,12 @@
 use crate::core::spider::{ParseResult, SpiderResponse};
 use crate::stats::StatsTracker;
 use crate::{HttpRequest, HttpResponse, Scraper, ScraperError};
-use actix_rt::spawn;
 use futures::stream::{FuturesUnordered, StreamExt};
 use log::{debug, info, trace, warn};
 use parking_lot::RwLock;
 use std::collections::HashSet;
 use std::sync::Arc;
+use tokio::spawn;
 use tokio::task::JoinHandle;
 use tokio::time::sleep;
 

@@ -147,7 +147,7 @@ impl Spider for TestSpider {
     }
 }
 
-#[actix_rt::test]
+#[tokio::test]
 async fn test_crawler_retry_with_same_content() {
     let retry_count = Arc::new(RwLock::new(0));
     let max_attempts = 3;
@@ -199,7 +199,7 @@ async fn test_crawler_retry_with_same_content() {
         .await;
 }
 
-#[actix_rt::test]
+#[tokio::test]
 async fn test_crawler_retry_with_new_content() {
     let retry_count = Arc::new(RwLock::new(0));
     let spider = TestSpider::new(
@@ -245,7 +245,7 @@ async fn test_crawler_retry_with_new_content() {
     assert_eq!(*retry_count.read(), 3); // Initial + 2 retries with new content
 }
 
-#[actix_rt::test]
+#[tokio::test]
 async fn test_crawler_storage_error_retry() {
     let retry_count = Arc::new(RwLock::new(0));
     let max_attempts = 3;
@@ -294,7 +294,7 @@ async fn test_crawler_storage_error_retry() {
         .await;
 }
 
-#[actix_rt::test]
+#[tokio::test]
 async fn test_crawler_max_retries_limit() {
     let retry_count = Arc::new(RwLock::new(0));
     let spider = TestSpider::new(
