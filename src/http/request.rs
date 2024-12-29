@@ -34,8 +34,17 @@ impl HttpRequest {
         self
     }
 
+    pub fn with_header<K, V>(mut self, key: K, value: V) -> Self
+    where
+        K: Into<String>,
+        V: Into<String>,
+    {
+        self.headers.insert(key.into(), value.into());
+        self
+    }
+
     pub fn with_headers(mut self, headers: HashMap<String, String>) -> Self {
-        self.headers = headers;
+        self.headers.extend(headers);
         self
     }
 

@@ -13,6 +13,7 @@ pub enum MongoStorageError {
     Operation(MongoError),
 }
 
+#[derive(Clone)]
 pub struct MongoStorage {
     database_name: String,
     client: Client,

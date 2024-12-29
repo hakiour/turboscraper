@@ -6,6 +6,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use uuid::Uuid;
 
+#[derive(Clone)]
 pub struct DiskStorage {
     base_path: PathBuf,
 }

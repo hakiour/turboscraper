@@ -202,13 +202,7 @@ async fn test_crawler_retry_with_same_content() {
 #[tokio::test]
 async fn test_crawler_retry_with_new_content() {
     let retry_count = Arc::new(RwLock::new(0));
-    let spider = TestSpider::new(
-        Arc::clone(&retry_count),
-        RetryBehavior::RetryWithNew {
-            max_attempts: 3,
-            error: None,
-        },
-    );
+    let spider = TestSpider::new_with_new_content(Arc::clone(&retry_count), 3);
 
     let mock_responses = vec![MockResponse {
         status: 200,

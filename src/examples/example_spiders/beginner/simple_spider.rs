@@ -1,6 +1,7 @@
 use crate::core::spider::{ParseResult, SpiderConfig, SpiderResponse};
 use crate::core::SpiderCallback;
 use crate::http::{HttpRequest, HttpResponse};
+use crate::storage::factory::Storage;
 use crate::storage::{IntoStorageData, StorageBackend};
 use crate::storage::{StorageConfig, StorageItem};
 use crate::{ScraperResult, Spider};
@@ -14,12 +15,12 @@ use url::Url;
 pub struct BookSpider {
     config: SpiderConfig,
     start_urls: Vec<Url>,
-    storage: Box<dyn StorageBackend>,
+    storage: Storage,
     storage_config: Box<dyn StorageConfig>,
 }
 
 impl BookSpider {
-    pub fn new(storage: Box<dyn StorageBackend>) -> ScraperResult<Self> {
+    pub fn new(storage: Storage) -> ScraperResult<Self> {
         Ok(Self {
             config: SpiderConfig::default(),
             start_urls: vec![Url::parse("https://books.toscrape.com/").unwrap()],
