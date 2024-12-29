@@ -1,29 +1,65 @@
+use crate::{storage::base::StorageError, ScraperError};
+
 use super::types::*;
 use regex::Regex;
 use std::time::Duration;
 
-pub fn retry_condition_should_apply(
-    condition: &RetryCondition,
+pub fn retry_request_condition_should_apply(
+    condition: &RequestRetryCondition,
     status: u16,
     content: &str,
 ) -> bool {
     match condition {
-        RetryCondition::StatusCode(code) => *code == status,
-        RetryCondition::Content(content_condition) => {
-            if content_condition.is_regex {
-                Regex::new(&content_condition.pattern)
-                    .map(|re| re.is_match(content))
-                    .unwrap_or(false)
+        RequestRetryCondition::StatusCode(code) => *code == status,
+        RequestRetryCondition::Content(content_condition) => {
+            check_content_condition(content_condition, content)
+        }
+    }
+}
+
+pub fn retry_parse_condition_should_apply(
+    condition: &ParseRetryCondition,
+    error: &ScraperError,
+) -> bool {
+    match condition {
+        ParseRetryCondition::Content(content_condition, _) => {
+            if let ScraperError::ExtractionError(msg) = error {
+                check_content_condition(content_condition, msg)
             } else {
-                content
-                    .to_lowercase()
-                    .contains(&content_condition.pattern.to_lowercase())
+                false
             }
         }
-        RetryCondition::StorageError(error_type) => match error_type {
-            StorageErrorType::MongoError(_) => true, // Match any MongoDB error
-            StorageErrorType::DiskError(_) => true,  // Match any disk error
-        },
+        ParseRetryCondition::StorageError(expected_error, _) => {
+            if let ScraperError::StorageError(actual_error) = error {
+                matches!(
+                    (expected_error, actual_error),
+                    (
+                        StorageError::ConnectionError(_),
+                        StorageError::ConnectionError(_)
+                    ) | (
+                        StorageError::OperationError(_),
+                        StorageError::OperationError(_)
+                    ) | (
+                        StorageError::SerializationError(_),
+                        StorageError::SerializationError(_)
+                    )
+                )
+            } else {
+                false
+            }
+        }
+    }
+}
+
+fn check_content_condition(condition: &ContentRetryCondition, content: &str) -> bool {
+    if condition.is_regex {
+        Regex::new(&condition.pattern)
+            .map(|re| re.is_match(content))
+            .unwrap_or(false)
+    } else {
+        content
+            .to_lowercase()
+            .contains(&condition.pattern.to_lowercase())
     }
 }
 

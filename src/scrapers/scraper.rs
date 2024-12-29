@@ -38,7 +38,7 @@ pub trait Scraper: Send + Sync {
             if let Some((category, delay)) =
                 config
                     .retry_config
-                    .should_retry(&url, response.status, &response.body)
+                    .should_retry_request(&url, response.status, &response.body)
             {
                 self.stats().record_retry(format!("{:?}", category));
                 let state = config.retry_config.get_retry_state(&url);
@@ -63,7 +63,6 @@ pub trait Scraper: Send + Sync {
             }
 
             let state = config.retry_config.get_retry_state(&url);
-
             info!(
                 "Request completed for URL: {} (total_retries={}, status={})",
                 url, state.total_retries, response.status

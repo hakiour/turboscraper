@@ -1,6 +1,6 @@
 use crate::core::retry::{
-    BackoffPolicy, CategoryConfig, ContentRetryCondition, RetryCategory, RetryCondition,
-    RetryConfig,
+    BackoffPolicy, CategoryConfig, ContentRetryCondition, RequestRetryCondition, RetryCategory,
+    RetryCondition, RetryConfig,
 };
 use crate::core::spider::SpiderConfig;
 use crate::core::SpiderCallback;
@@ -34,7 +34,9 @@ async fn test_rate_limit_retry() {
             max_retries: 3,
             initial_delay: Duration::from_millis(100),
             max_delay: Duration::from_secs(1),
-            conditions: vec![RetryCondition::StatusCode(429)],
+            conditions: vec![RetryCondition::Request(RequestRetryCondition::StatusCode(
+                429,
+            ))],
             backoff_policy: BackoffPolicy::Constant,
         },
     );
@@ -83,10 +85,12 @@ async fn test_bot_detection_retry() {
             max_retries: 3,
             initial_delay: Duration::from_millis(100),
             max_delay: Duration::from_secs(1),
-            conditions: vec![RetryCondition::Content(ContentRetryCondition {
-                pattern: "bot detected".to_string(),
-                is_regex: false,
-            })],
+            conditions: vec![RetryCondition::Request(RequestRetryCondition::Content(
+                ContentRetryCondition {
+                    pattern: "bot detected".to_string(),
+                    is_regex: false,
+                },
+            ))],
             backoff_policy: BackoffPolicy::Constant,
         },
     );
@@ -140,7 +144,9 @@ async fn test_exponential_backoff() {
             max_retries: 3,
             initial_delay: Duration::from_millis(100),
             max_delay: Duration::from_secs(1),
-            conditions: vec![RetryCondition::StatusCode(429)],
+            conditions: vec![RetryCondition::Request(RequestRetryCondition::StatusCode(
+                429,
+            ))],
             backoff_policy: BackoffPolicy::Exponential { factor: 2.0 },
         },
     );
@@ -185,7 +191,9 @@ async fn test_max_retries_exceeded() {
             max_retries: 2,
             initial_delay: Duration::from_millis(100),
             max_delay: Duration::from_secs(1),
-            conditions: vec![RetryCondition::StatusCode(429)],
+            conditions: vec![RetryCondition::Request(RequestRetryCondition::StatusCode(
+                429,
+            ))],
             backoff_policy: BackoffPolicy::Constant,
         },
     );
@@ -238,7 +246,9 @@ async fn test_multiple_retry_categories() {
             max_retries: 3,
             initial_delay: Duration::from_millis(100),
             max_delay: Duration::from_secs(1),
-            conditions: vec![RetryCondition::StatusCode(429)],
+            conditions: vec![RetryCondition::Request(RequestRetryCondition::StatusCode(
+                429,
+            ))],
             backoff_policy: BackoffPolicy::Constant,
         },
     );
@@ -248,10 +258,12 @@ async fn test_multiple_retry_categories() {
             max_retries: 3,
             initial_delay: Duration::from_millis(100),
             max_delay: Duration::from_secs(1),
-            conditions: vec![RetryCondition::Content(ContentRetryCondition {
-                pattern: "Bot detected".to_string(),
-                is_regex: false,
-            })],
+            conditions: vec![RetryCondition::Request(RequestRetryCondition::Content(
+                ContentRetryCondition {
+                    pattern: "Bot detected".to_string(),
+                    is_regex: false,
+                },
+            ))],
             backoff_policy: BackoffPolicy::Constant,
         },
     );
@@ -304,10 +316,12 @@ async fn test_regex_content_retry() {
             max_retries: 3,
             initial_delay: Duration::from_millis(100),
             max_delay: Duration::from_secs(1),
-            conditions: vec![RetryCondition::Content(ContentRetryCondition {
-                pattern: r"IP.*blocked".to_string(),
-                is_regex: true,
-            })],
+            conditions: vec![RetryCondition::Request(RequestRetryCondition::Content(
+                ContentRetryCondition {
+                    pattern: r"IP.*blocked".to_string(),
+                    is_regex: true,
+                },
+            ))],
             backoff_policy: BackoffPolicy::Constant,
         },
     );
@@ -356,10 +370,12 @@ async fn test_custom_category() {
             max_retries: 3,
             initial_delay: Duration::from_millis(100),
             max_delay: Duration::from_secs(1),
-            conditions: vec![RetryCondition::Content(ContentRetryCondition {
-                pattern: "Checking your browser.*Cloudflare".to_string(),
-                is_regex: true,
-            })],
+            conditions: vec![RetryCondition::Request(RequestRetryCondition::Content(
+                ContentRetryCondition {
+                    pattern: "Checking your browser.*Cloudflare".to_string(),
+                    is_regex: true,
+                },
+            ))],
             backoff_policy: BackoffPolicy::Constant,
         },
     );

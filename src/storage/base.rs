@@ -3,6 +3,7 @@ use chrono::{DateTime, Utc};
 use erased_serde::Serialize as ErasedSerialize;
 use serde::Serialize;
 use serde_json::Value;
+use thiserror::Error;
 use url::Url;
 
 #[derive(Debug, Clone, Serialize)]
@@ -17,6 +18,16 @@ pub trait StorageConfig: Send + Sync {
     fn as_any(&self) -> &dyn std::any::Any;
 }
 
+#[derive(Debug, Clone, Error)]
+pub enum StorageError {
+    #[error("Connection error: {0}")]
+    ConnectionError(String),
+    #[error("Operation error: {0}")]
+    OperationError(String),
+    #[error("Serialization error: {0}")]
+    SerializationError(String),
+}
+
 #[async_trait]
 pub trait StorageBackend: Send + Sync {
     fn create_config(&self, collection_name: &str) -> Box<dyn StorageConfig>;
@@ -25,7 +36,7 @@ pub trait StorageBackend: Send + Sync {
         &self,
         item: StorageItem<Box<dyn ErasedSerialize + Send + Sync>>,
         config: &dyn StorageConfig,
-    ) -> crate::ScraperResult<()>;
+    ) -> Result<(), StorageError>;
 }
 
 pub trait IntoStorageData {

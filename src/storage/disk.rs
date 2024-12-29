@@ -1,4 +1,4 @@
-use super::base::{StorageBackend, StorageConfig, StorageItem};
+use super::base::{StorageBackend, StorageConfig, StorageError, StorageItem};
 use crate::ScraperResult;
 use async_trait::async_trait;
 use erased_serde::Serialize as ErasedSerialize;
@@ -30,6 +30,18 @@ impl StorageConfig for DiskConfig {
     }
 }
 
+impl From<std::io::Error> for StorageError {
+    fn from(error: std::io::Error) -> Self {
+        StorageError::OperationError(error.to_string())
+    }
+}
+
+impl From<serde_json::Error> for StorageError {
+    fn from(error: serde_json::Error) -> Self {
+        StorageError::SerializationError(error.to_string())
+    }
+}
+
 #[async_trait]
 impl StorageBackend for DiskStorage {
     fn create_config(&self, collection_name: &str) -> Box<dyn StorageConfig> {
@@ -43,7 +55,7 @@ impl StorageBackend for DiskStorage {
         &self,
         item: StorageItem<Box<dyn ErasedSerialize + Send + Sync>>,
         config: &dyn StorageConfig,
-    ) -> ScraperResult<()> {
+    ) -> Result<(), StorageError> {
         let config = config
             .as_any()
             .downcast_ref::<DiskConfig>()

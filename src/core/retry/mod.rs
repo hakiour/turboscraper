@@ -1,5 +1,5 @@
 mod r#impl;
-mod mock_scraper;
+pub(crate) mod mock_scraper;
 mod types;
 mod utils;
 

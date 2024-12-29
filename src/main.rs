@@ -2,8 +2,8 @@ use std::time::Duration;
 use turboscraper::examples::example_spiders::beginner::simple_spider::BookSpider;
 
 use turboscraper::core::retry::{
-    BackoffPolicy, CategoryConfig, ContentRetryCondition, RetryCategory, RetryCondition,
-    RetryConfig,
+    BackoffPolicy, CategoryConfig, ContentRetryCondition, RequestRetryCondition, RetryCategory,
+    RetryCondition, RetryConfig,
 };
 use turboscraper::core::spider::SpiderConfig;
 use turboscraper::scrapers::http_scraper::HttpScraper;
@@ -28,11 +28,11 @@ async fn main() -> ScraperResult<()> {
             initial_delay: Duration::from_secs(1),
             max_delay: Duration::from_secs(10),
             conditions: vec![
-                RetryCondition::StatusCode(429),
-                RetryCondition::Content(ContentRetryCondition {
+                RetryCondition::Request(RequestRetryCondition::StatusCode(429)),
+                RetryCondition::Request(RequestRetryCondition::Content(ContentRetryCondition {
                     pattern: "rate limit|too many requests".to_string(),
                     is_regex: true,
-                }),
+                })),
             ],
             backoff_policy: BackoffPolicy::Exponential { factor: 2.0 },
         },

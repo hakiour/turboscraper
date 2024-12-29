@@ -15,9 +15,11 @@ pub enum SpiderCallback {
 
 #[derive(Debug)]
 pub enum ParseResult {
-    Continue(Vec<HttpRequest>), // Continue crawling with these requests
-    Skip,                       // Skip this URL but continue crawling
-    Stop,                       // Stop crawling
+    Continue(Vec<HttpRequest>),
+    Skip,
+    Stop,
+    RetryWithSameContent(HttpResponse),
+    RetryWithNewContent(HttpRequest), // Include the request to retry
 }
 
 #[derive(Debug, Clone)]

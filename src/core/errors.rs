@@ -1,6 +1,5 @@
+use crate::storage::base::StorageError;
 use thiserror::Error;
-
-use super::retry::StorageErrorType;
 
 #[derive(Error, Debug)]
 pub enum ScraperError {
@@ -23,7 +22,7 @@ pub enum ScraperError {
     MiddlewareError(String),
 
     #[error("Storage error: {0}")]
-    StorageError(StorageErrorType),
+    StorageError(#[from] StorageError),
 }
 
 pub type ScraperResult<T> = Result<T, ScraperError>;

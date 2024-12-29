@@ -1,3 +1,4 @@
+use crate::storage::base::StorageError;
 use parking_lot::RwLock;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -10,25 +11,21 @@ pub struct ContentRetryCondition {
 }
 
 #[derive(Debug, Clone)]
-pub enum StorageErrorType {
-    MongoError(String),
-    DiskError(String),
+pub enum RequestRetryCondition {
+    StatusCode(u16),
+    Content(ContentRetryCondition),
 }
 
 #[derive(Debug, Clone)]
-pub enum RetryCondition {
-    StatusCode(u16),
-    Content(ContentRetryCondition),
-    StorageError(StorageErrorType),
+pub enum ParseRetryType {
+    SameContent, // Retry with the same response content
+    FetchNew,    // Fetch the URL again and retry with new content
 }
 
-impl std::fmt::Display for StorageErrorType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            StorageErrorType::MongoError(e) => write!(f, "MongoDB error: {}", e),
-            StorageErrorType::DiskError(e) => write!(f, "Disk error: {}", e),
-        }
-    }
+#[derive(Debug, Clone)]
+pub enum ParseRetryCondition {
+    Content(ContentRetryCondition, ParseRetryType),
+    StorageError(StorageError, ParseRetryType),
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -48,6 +45,13 @@ pub enum RetryCategory {
     Authentication, // 401, 403
     Custom(String), // Custom category
     StorageError,   // Storage-related errors
+    ParseError,     // Parse-related errors
+}
+
+#[derive(Debug, Clone)]
+pub enum RetryCondition {
+    Request(RequestRetryCondition),
+    Parse(ParseRetryCondition),
 }
 
 #[derive(Debug, Clone)]

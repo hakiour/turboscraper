@@ -1,7 +1,7 @@
-mod base;
-mod disk;
-mod factory;
-mod mongo;
+pub mod base;
+pub mod disk;
+pub mod factory;
+pub mod mongo;
 
 pub use base::{IntoStorageData, StorageBackend, StorageConfig, StorageItem};
 pub use disk::DiskStorage;
