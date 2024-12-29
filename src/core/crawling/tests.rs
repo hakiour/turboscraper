@@ -1,4 +1,3 @@
-use super::*;
 use crate::core::retry::mock_scraper::{MockResponse, MockScraper};
 use crate::core::retry::{
     BackoffPolicy, CategoryConfig, ContentRetryCondition, ParseRetryCondition, ParseRetryType,
@@ -116,7 +115,9 @@ impl Spider for TestSpider {
                             response.response.from_request,
                         ))
                     } else {
-                        Ok(ParseResult::RetryWithSameContent(response.response))
+                        Ok(ParseResult::RetryWithSameContent(Box::new(
+                            response.response,
+                        )))
                     }
                 } else {
                     Ok(ParseResult::Skip)
@@ -136,7 +137,7 @@ impl Spider for TestSpider {
                         ))
                     } else {
                         let request = HttpRequest::new(url, SpiderCallback::ParseItem, 0);
-                        Ok(ParseResult::RetryWithNewContent(request))
+                        Ok(ParseResult::RetryWithNewContent(Box::new(request)))
                     }
                 } else {
                     Ok(ParseResult::Skip)
@@ -146,7 +147,7 @@ impl Spider for TestSpider {
     }
 }
 
-#[actix_rt::test]
+#[tokio::test]
 async fn test_crawler_retry_with_same_content() {
     let retry_count = Arc::new(RwLock::new(0));
     let max_attempts = 3;
@@ -198,7 +199,7 @@ async fn test_crawler_retry_with_same_content() {
         .await;
 }
 
-#[actix_rt::test]
+#[tokio::test]
 async fn test_crawler_retry_with_new_content() {
     let retry_count = Arc::new(RwLock::new(0));
     let spider = TestSpider::new(
@@ -244,7 +245,7 @@ async fn test_crawler_retry_with_new_content() {
     assert_eq!(*retry_count.read(), 3); // Initial + 2 retries with new content
 }
 
-#[actix_rt::test]
+#[tokio::test]
 async fn test_crawler_storage_error_retry() {
     let retry_count = Arc::new(RwLock::new(0));
     let max_attempts = 3;
@@ -293,7 +294,7 @@ async fn test_crawler_storage_error_retry() {
         .await;
 }
 
-#[actix_rt::test]
+#[tokio::test]
 async fn test_crawler_max_retries_limit() {
     let retry_count = Arc::new(RwLock::new(0));
     let spider = TestSpider::new(
@@ -339,7 +340,7 @@ async fn test_crawler_max_retries_limit() {
     assert_eq!(*retry_count.read(), 6); // Initial + 1 retry (max reached)
 }
 
-#[actix_rt::test]
+#[tokio::test]
 async fn test_crawler_no_retry() {
     let retry_count = Arc::new(RwLock::new(0));
     let spider = TestSpider::new(Arc::clone(&retry_count), RetryBehavior::NoRetry);

@@ -10,7 +10,7 @@ use turboscraper::scrapers::http_scraper::HttpScraper;
 use turboscraper::storage::{create_storage, StorageType};
 use turboscraper::{Crawler, ScraperResult, Spider};
 
-#[actix_rt::main]
+#[tokio::main]
 async fn main() -> ScraperResult<()> {
     env_logger::builder()
         .filter_level(log::LevelFilter::Warn)
