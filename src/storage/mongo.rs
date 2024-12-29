@@ -1,5 +1,6 @@
 use super::base::{StorageBackend, StorageConfig, StorageError, StorageItem};
-use crate::{ScraperError, ScraperResult};
+use crate::ScraperError;
+use anyhow::Error;
 use async_trait::async_trait;
 use erased_serde::Serialize as ErasedSerialize;
 use mongodb::{bson::doc, error::Error as MongoError, Client};
@@ -18,10 +19,11 @@ pub struct MongoStorage {
 }
 
 impl MongoStorage {
-    pub async fn new(connection_string: &str, database_name: &str) -> ScraperResult<Self> {
+    pub async fn new(connection_string: &str, database_name: &str) -> Result<Self, Error> {
         let client = Client::with_uri_str(connection_string)
             .await
-            .map_err(|e| MongoStorageError::Connection(e))?;
+            .map_err(|e| MongoStorageError::Connection(e))
+            .unwrap();
 
         Ok(Self {
             database_name: database_name.to_string(),

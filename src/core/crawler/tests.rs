@@ -108,9 +108,12 @@ impl Spider for TestSpider {
                 error,
             } => {
                 if *count < *max_attempts {
-                    if let Some(err) = error {
-                        ScraperResult::Err(ScraperError::StorageError(
-                            StorageError::OperationError("test storage error".to_string()),
+                    if let Some(_) = error {
+                        ScraperResult::Err((
+                            ScraperError::StorageError(StorageError::OperationError(
+                                "test storage error".to_string(),
+                            )),
+                            response.response.from_request,
                         ))
                     } else {
                         Ok(ParseResult::RetryWithSameContent(response.response))
@@ -124,9 +127,12 @@ impl Spider for TestSpider {
                 error,
             } => {
                 if *count < *max_attempts {
-                    if let Some(err) = error {
-                        ScraperResult::Err(ScraperError::StorageError(
-                            StorageError::OperationError("test storage error".to_string()),
+                    if let Some(_) = error {
+                        ScraperResult::Err((
+                            ScraperError::StorageError(StorageError::OperationError(
+                                "test storage error".to_string(),
+                            )),
+                            response.response.from_request,
                         ))
                     } else {
                         let request = HttpRequest::new(url, SpiderCallback::ParseItem, 0);
@@ -331,4 +337,30 @@ async fn test_crawler_max_retries_limit() {
     crawler.run(spider).await.unwrap();
 
     assert_eq!(*retry_count.read(), 6); // Initial + 1 retry (max reached)
+}
+
+#[actix_rt::test]
+async fn test_crawler_no_retry() {
+    let retry_count = Arc::new(RwLock::new(0));
+    let spider = TestSpider::new(Arc::clone(&retry_count), RetryBehavior::NoRetry);
+
+    let mock_responses = vec![MockResponse {
+        status: 200,
+        body: "test content".to_string(),
+        delay: None,
+    }];
+
+    let config = SpiderConfig::default();
+    let spider = spider.with_config(config);
+
+    let scraper = Box::new(MockScraper::new(mock_responses));
+    let crawler = Crawler::new(scraper);
+
+    crawler.run(spider).await.unwrap();
+
+    assert_eq!(
+        *retry_count.read(),
+        1,
+        "Expected exactly one attempt with no retries"
+    );
 }

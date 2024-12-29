@@ -48,7 +48,8 @@ async fn main() -> ScraperResult<()> {
     let storage = create_storage(StorageType::Disk {
         path: "data".to_string(),
     })
-    .await?;
+    .await
+    .unwrap();
 
     // Or use MongoDB
     /*

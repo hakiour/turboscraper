@@ -115,10 +115,17 @@ impl Crawler {
                     }
                 },
                 Ok(Err(e)) => {
-                    warn!("Error processing request: {}", e);
-                    match e {
+                    warn!("Error processing request: {}", e.0);
+                    match e.0 {
                         ScraperError::StorageError(_) => {
                             self.stats.increment_storage_errors();
+                            self.process_requests(
+                                vec![e.1],
+                                Arc::clone(&spider),
+                                &mut futures,
+                                true,
+                            )
+                            .await;
                         }
                         _ => {
                             // Handle other types of errors

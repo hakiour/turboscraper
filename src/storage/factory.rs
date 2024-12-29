@@ -1,5 +1,5 @@
 use super::{DiskStorage, MongoStorage, StorageBackend};
-use crate::ScraperResult;
+use anyhow::Error;
 
 pub enum StorageType {
     Disk {
@@ -11,14 +11,16 @@ pub enum StorageType {
     },
 }
 
-pub async fn create_storage(storage_type: StorageType) -> ScraperResult<Box<dyn StorageBackend>> {
+pub async fn create_storage(storage_type: StorageType) -> Result<Box<dyn StorageBackend>, Error> {
     match storage_type {
-        StorageType::Disk { path } => Ok(Box::new(DiskStorage::new(path)?)),
+        StorageType::Disk { path } => Ok(Box::new(DiskStorage::new(path).unwrap())),
         StorageType::Mongo {
             connection_string,
             database,
         } => Ok(Box::new(
-            MongoStorage::new(&connection_string, &database).await?,
+            MongoStorage::new(&connection_string, &database)
+                .await
+                .unwrap(),
         )),
     }
 }

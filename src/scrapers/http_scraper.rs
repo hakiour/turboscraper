@@ -81,10 +81,10 @@ impl Scraper for HttpScraper {
         }
 
         let start_time = Utc::now();
-        let response = req.send().await?;
+        let response = req.send().await.unwrap();
         let status = response.status().as_u16();
         let headers = response.headers().clone();
-        let body = response.text().await?;
+        let body = response.text().await.unwrap();
         let end_time = Utc::now();
 
         let headers: HashMap<String, String> = headers

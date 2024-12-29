@@ -103,7 +103,8 @@ impl BookSpider {
 
         self.storage
             .store_serialized(item, &*self.storage_config)
-            .await?;
+            .await
+            .unwrap();
         Ok(())
     }
 

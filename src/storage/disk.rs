@@ -1,5 +1,5 @@
 use super::base::{StorageBackend, StorageConfig, StorageError, StorageItem};
-use crate::ScraperResult;
+use anyhow::Error;
 use async_trait::async_trait;
 use erased_serde::Serialize as ErasedSerialize;
 use std::fs;
@@ -11,7 +11,7 @@ pub struct DiskStorage {
 }
 
 impl DiskStorage {
-    pub fn new<P: AsRef<Path>>(base_path: P) -> ScraperResult<Self> {
+    pub fn new<P: AsRef<Path>>(base_path: P) -> Result<Self, Error> {
         let base_path = base_path.as_ref().to_path_buf();
         fs::create_dir_all(&base_path)?;
         Ok(Self { base_path })

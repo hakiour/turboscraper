@@ -45,7 +45,7 @@ impl HttpRequest {
     }
 
     pub fn with_meta<T: serde::Serialize>(mut self, meta: T) -> crate::ScraperResult<Self> {
-        self.meta = Some(serde_json::to_value(meta)?);
+        self.meta = Some(serde_json::to_value(meta).unwrap());
         Ok(self)
     }
 }
