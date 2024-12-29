@@ -17,7 +17,7 @@ A high-performance, concurrent web scraping framework for Rust, powered by Tokio
 Add TurboScraper to your `Cargo.toml`:
 ```toml
 [dependencies]
-turboscraper = { path = "path/to/turboscraper" }
+turboscraper = { version = "0.1.0" }
 ```
 
 ### Basic Spider Example
