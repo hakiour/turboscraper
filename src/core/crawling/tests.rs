@@ -1,4 +1,3 @@
-use super::*;
 use crate::core::retry::mock_scraper::{MockResponse, MockScraper};
 use crate::core::retry::{
     BackoffPolicy, CategoryConfig, ContentRetryCondition, ParseRetryCondition, ParseRetryType,
@@ -116,7 +115,9 @@ impl Spider for TestSpider {
                             response.response.from_request,
                         ))
                     } else {
-                        Ok(ParseResult::RetryWithSameContent(response.response))
+                        Ok(ParseResult::RetryWithSameContent(Box::new(
+                            response.response,
+                        )))
                     }
                 } else {
                     Ok(ParseResult::Skip)
@@ -136,7 +137,7 @@ impl Spider for TestSpider {
                         ))
                     } else {
                         let request = HttpRequest::new(url, SpiderCallback::ParseItem, 0);
-                        Ok(ParseResult::RetryWithNewContent(request))
+                        Ok(ParseResult::RetryWithNewContent(Box::new(request)))
                     }
                 } else {
                     Ok(ParseResult::Skip)

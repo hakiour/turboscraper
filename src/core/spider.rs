@@ -18,8 +18,8 @@ pub enum ParseResult {
     Continue(Vec<HttpRequest>),
     Skip,
     Stop,
-    RetryWithSameContent(HttpResponse),
-    RetryWithNewContent(HttpRequest), // Include the request to retry
+    RetryWithSameContent(Box<HttpResponse>),
+    RetryWithNewContent(Box<HttpRequest>), // Include the request to retry
 }
 
 #[derive(Debug, Clone)]

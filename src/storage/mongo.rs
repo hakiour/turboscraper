@@ -22,7 +22,7 @@ impl MongoStorage {
     pub async fn new(connection_string: &str, database_name: &str) -> Result<Self, Error> {
         let client = Client::with_uri_str(connection_string)
             .await
-            .map_err(|e| MongoStorageError::Connection(e))
+            .map_err(MongoStorageError::Connection)
             .unwrap();
 
         Ok(Self {

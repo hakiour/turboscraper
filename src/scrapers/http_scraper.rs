@@ -19,6 +19,12 @@ pub struct HttpScraper {
     stats: Arc<StatsTracker>,
 }
 
+impl Default for HttpScraper {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl HttpScraper {
     pub fn new() -> Self {
         Self {

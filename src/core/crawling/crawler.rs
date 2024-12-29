@@ -100,13 +100,17 @@ impl Crawler {
                         break;
                     }
                     ParseResult::RetryWithSameContent(response) => {
-                        self.handle_same_content_retry(response, Arc::clone(&spider), &mut futures)
-                            .await;
+                        self.handle_same_content_retry(
+                            *response,
+                            Arc::clone(&spider),
+                            &mut futures,
+                        )
+                        .await;
                     }
                     ParseResult::RetryWithNewContent(request) => {
                         // Reuse process_requests for new content retries
                         self.process_requests(
-                            vec![request],
+                            vec![*request],
                             Arc::clone(&spider),
                             &mut futures,
                             true,
@@ -160,11 +164,12 @@ impl Crawler {
 
             let url_str = request.url.to_string();
 
-            if !is_retry && !spider.config().allow_url_revisit {
-                if self.visited_urls.read().contains(&url_str) {
-                    debug!("Skipping URL {} - already visited", url_str);
-                    continue;
-                }
+            if !is_retry
+                && !spider.config().allow_url_revisit
+                && self.visited_urls.read().contains(&url_str)
+            {
+                debug!("Skipping URL {} - already visited", url_str);
+                continue;
             }
 
             info!("Processing URL: {} at depth {}", url_str, request.depth);
