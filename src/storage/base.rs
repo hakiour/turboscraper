@@ -12,6 +12,7 @@ pub struct StorageItem<T: Serialize> {
     pub timestamp: DateTime<Utc>,
     pub data: T,
     pub metadata: Option<Value>,
+    pub id: String,
 }
 
 pub trait StorageConfig: Send + Sync {

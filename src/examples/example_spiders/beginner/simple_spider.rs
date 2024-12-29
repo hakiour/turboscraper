@@ -100,6 +100,7 @@ impl BookSpider {
                     "headers": response.headers,
                 }
             })),
+            id: self.name(),
         };
 
         self.storage
@@ -177,8 +178,12 @@ impl Spider for BookSpider {
         "book_spider".to_string()
     }
 
-    fn start_urls(&self) -> Vec<Url> {
-        self.start_urls.clone()
+    fn start_requests(&self) -> Vec<HttpRequest> {
+        self.start_urls
+            .clone()
+            .into_iter()
+            .map(|url| HttpRequest::new(url, SpiderCallback::Bootstrap, 0))
+            .collect()
     }
 
     /// Main `parse` entrypoint

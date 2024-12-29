@@ -73,7 +73,7 @@ impl Crawler {
         info!("Starting spider: {}", spider.name());
         debug!("Max depth: {}", spider.config().max_depth);
 
-        let initial_requests = spider.get_initial_requests();
+        let initial_requests = spider.start_requests();
         if !initial_requests.is_empty() {
             self.process_requests(initial_requests, Arc::clone(&spider), &mut futures, false)
                 .await;

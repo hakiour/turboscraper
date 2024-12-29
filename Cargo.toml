@@ -1,6 +1,6 @@
 [package]
 name = "turboscraper"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 description = "A high-performance, concurrent web scraping framework for Rust with built-in support for retries, storage backends, and concurrent request handling"
 license = "MIT"

@@ -81,9 +81,9 @@ impl SpiderConfig {
 #[async_trait]
 pub trait Spider: Sized {
     fn name(&self) -> String;
-    fn start_urls(&self) -> Vec<Url>;
     fn config(&self) -> &SpiderConfig;
     fn set_config(&mut self, config: SpiderConfig);
+    fn start_requests(&self) -> Vec<HttpRequest>;
 
     async fn parse(
         &self,
@@ -91,13 +91,6 @@ pub trait Spider: Sized {
         url: Url,
         depth: usize,
     ) -> ScraperResult<ParseResult>;
-
-    fn get_initial_requests(&self) -> Vec<HttpRequest> {
-        self.start_urls()
-            .into_iter()
-            .map(|url| HttpRequest::new(url, self.get_initial_callback(), 0))
-            .collect()
-    }
 
     fn get_initial_callback(&self) -> SpiderCallback {
         SpiderCallback::Bootstrap

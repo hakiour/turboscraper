@@ -79,8 +79,12 @@ impl Spider for TestSpider {
         "test_spider".to_string()
     }
 
-    fn start_urls(&self) -> Vec<Url> {
-        vec![Url::parse("http://example.com").unwrap()]
+    fn start_requests(&self) -> Vec<HttpRequest> {
+        vec![HttpRequest::new(
+            Url::parse("http://example.com").unwrap(),
+            SpiderCallback::Bootstrap,
+            0,
+        )]
     }
 
     fn config(&self) -> &SpiderConfig {

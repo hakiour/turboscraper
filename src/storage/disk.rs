@@ -70,7 +70,8 @@ impl StorageBackend for DiskStorage {
         let timestamp = item.timestamp.format("%Y%m%d_%H%M%S");
         let host = item.url.host_str().unwrap_or("unknown");
         let prefix = config.filename_prefix.as_deref().unwrap_or("");
-        let filename = format!("{}{}_{}.json", prefix, timestamp, Uuid::now_v7());
+        let id = item.id;
+        let filename = format!("{}{}_{}_{}.json", prefix, timestamp, id, Uuid::now_v7());
 
         let final_path = path.join(host).join(filename);
         fs::create_dir_all(final_path.parent().unwrap())?;
@@ -80,6 +81,7 @@ impl StorageBackend for DiskStorage {
             "timestamp": item.timestamp,
             "data": item.data,
             "metadata": item.metadata,
+            "id": id,
         });
 
         fs::write(final_path, serde_json::to_string_pretty(&json)?)?;
