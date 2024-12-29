@@ -73,9 +73,8 @@ use turboscraper::storage::factory::{create_storage, StorageType};
 #[tokio::main]
 async fn main() -> ScraperResult<()> {
     // Initialize storage
-    let storage = create_storage(StorageType::Mongo {
-        connection_string: "mongodb://localhost:27017".to_string(),
-        database: "books".to_string(),
+    let storage = create_storage(StorageType::Disk {
+        path: "data/books".to_string(),
     }).await?;
 
     // Create and configure spider
