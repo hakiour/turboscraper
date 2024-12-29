@@ -340,7 +340,7 @@ async fn test_crawler_max_retries_limit() {
     assert_eq!(*retry_count.read(), 6); // Initial + 1 retry (max reached)
 }
 
-#[actix_rt::test]
+#[tokio::test]
 async fn test_crawler_no_retry() {
     let retry_count = Arc::new(RwLock::new(0));
     let spider = TestSpider::new(Arc::clone(&retry_count), RetryBehavior::NoRetry);
