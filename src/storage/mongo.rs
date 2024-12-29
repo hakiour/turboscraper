@@ -125,7 +125,7 @@ impl StorageBackend for MongoStorage {
         self.client
             .database(&self.database_name)
             .collection(&config.collection)
-            .insert_one(doc, None)
+            .insert_one(doc)
             .await
             .map_err(StorageError::from)?;
 

@@ -124,7 +124,7 @@ impl Crawler {
                         ScraperError::StorageError(_) => {
                             self.stats.increment_storage_errors();
                             self.process_requests(
-                                vec![e.1],
+                                vec![*e.1],
                                 Arc::clone(&spider),
                                 &mut futures,
                                 true,

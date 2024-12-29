@@ -25,4 +25,4 @@ pub enum ScraperError {
     StorageError(#[from] StorageError),
 }
 
-pub type ScraperResult<T> = Result<T, (ScraperError, HttpRequest)>; //When we have an error, we want to return the error and the request we were processing when the error occurred
+pub type ScraperResult<T> = Result<T, (ScraperError, Box<HttpRequest>)>; //When we have an error, we want to return the error and the request we were processing when the error occurred

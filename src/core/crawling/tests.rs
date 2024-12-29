@@ -112,7 +112,7 @@ impl Spider for TestSpider {
                             ScraperError::StorageError(StorageError::OperationError(
                                 "test storage error".to_string(),
                             )),
-                            response.response.from_request,
+                            Box::new(response.response.from_request),
                         ))
                     } else {
                         Ok(ParseResult::RetryWithSameContent(Box::new(
@@ -133,7 +133,7 @@ impl Spider for TestSpider {
                             ScraperError::StorageError(StorageError::OperationError(
                                 "test storage error".to_string(),
                             )),
-                            response.response.from_request,
+                            Box::new(response.response.from_request),
                         ))
                     } else {
                         let request = HttpRequest::new(url, SpiderCallback::ParseItem, 0);
