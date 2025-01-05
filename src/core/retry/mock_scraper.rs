@@ -73,7 +73,7 @@ impl Scraper for MockScraper {
             retry_history: HashMap::new(),
             meta: None,
             response_type: ResponseType::Html,
-            from_request: request,
+            from_request: Box::new(request),
         })
     }
 

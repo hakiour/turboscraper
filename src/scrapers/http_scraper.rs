@@ -118,7 +118,7 @@ impl Scraper for HttpScraper {
             retry_history: HashMap::new(),
             meta: Some(meta),
             response_type: ResponseType::Html,
-            from_request,
+            from_request: Box::new(from_request),
         })
     }
 

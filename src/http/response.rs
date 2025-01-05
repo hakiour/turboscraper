@@ -17,7 +17,7 @@ pub struct HttpResponse {
     pub retry_history: HashMap<RetryCategory, usize>,
     pub meta: Option<Value>,
     pub response_type: ResponseType,
-    pub from_request: HttpRequest,
+    pub from_request: Box<HttpRequest>,
 }
 
 #[derive(Debug, Clone)]

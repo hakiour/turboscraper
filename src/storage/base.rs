@@ -17,6 +17,13 @@ pub struct StorageItem<T: Serialize> {
 
 pub trait StorageConfig: Send + Sync {
     fn as_any(&self) -> &dyn std::any::Any;
+    fn clone_box(&self) -> Box<dyn StorageConfig>;
+}
+
+impl Clone for Box<dyn StorageConfig> {
+    fn clone(&self) -> Self {
+        self.clone_box()
+    }
 }
 
 #[derive(Debug, Clone, Error)]

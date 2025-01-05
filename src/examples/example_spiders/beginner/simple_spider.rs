@@ -2,10 +2,8 @@ use crate::core::retry::RetryCategory;
 use crate::core::spider::{ParseResult, SpiderConfig, SpiderResponse};
 use crate::core::SpiderCallback;
 use crate::http::{HttpRequest, HttpResponse};
-use crate::storage::factory::Storage;
-use crate::storage::{IntoStorageData, StorageBackend};
-use crate::storage::{StorageConfig, StorageItem};
-use crate::{ScraperError, ScraperResult, Spider};
+use crate::storage::{StorageCategory, StorageItem, StorageManager};
+use crate::{ScraperResult, Spider};
 use async_trait::async_trait;
 use chrono::Utc;
 use log::error;
@@ -16,17 +14,15 @@ use url::Url;
 pub struct BookSpider {
     config: SpiderConfig,
     start_urls: Vec<Url>,
-    storage: Storage,
-    storage_config: Box<dyn StorageConfig>,
+    storage_manager: StorageManager,
 }
 
 impl BookSpider {
-    pub fn new(storage: Storage) -> ScraperResult<Self> {
+    pub fn new(storage_manager: StorageManager) -> ScraperResult<Self> {
         Ok(Self {
             config: SpiderConfig::default(),
             start_urls: vec![Url::parse("https://books.toscrape.com/").unwrap()],
-            storage_config: storage.create_config("books"),
-            storage,
+            storage_manager,
         })
     }
 
@@ -92,7 +88,7 @@ impl BookSpider {
         let item = StorageItem {
             url,
             timestamp: Utc::now(),
-            data: details.into_storage_data(),
+            data: details,
             metadata: Some(json!({
                 "depth": depth,
                 "parser": "book_details",
@@ -104,10 +100,9 @@ impl BookSpider {
             id: self.name(),
         };
 
-        self.storage
-            .store_serialized(item, &*self.storage_config)
-            .await
-            .unwrap();
+        self.store_data(item, StorageCategory::Data, response.from_request)
+            .await?;
+
         Ok(())
     }
 
@@ -175,6 +170,11 @@ impl Spider for BookSpider {
     fn set_config(&mut self, config: SpiderConfig) {
         self.config = config;
     }
+
+    fn storage_manager(&self) -> &StorageManager {
+        &self.storage_manager
+    }
+
     fn name(&self) -> String {
         "book_spider".to_string()
     }
@@ -222,15 +222,14 @@ impl Spider for BookSpider {
         category: RetryCategory,
         request: Box<HttpRequest>,
     ) -> ScraperResult<()> {
-        // Create an error record
         let error_item = StorageItem {
             url: request.url.clone(),
             timestamp: Utc::now(),
             data: json!({
-                "error": format!("Max retries reached for category {:?} on url: {:?}", category, request.url),
+                "error": format!("Max retries reached for category {:?}", category),
                 "spider": self.name(),
                 "request": *request,
-            }).into_storage_data(),
+            }),
             metadata: Some(json!({
                 "error_type": "max_retries",
                 "category": format!("{:?}", category),
@@ -238,12 +237,7 @@ impl Spider for BookSpider {
             id: format!("{}_errors", self.name()),
         };
 
-        // Store the error
-        self.storage
-            .store_serialized(error_item, &*self.storage_config)
+        self.store_data(error_item, StorageCategory::Error, request)
             .await
-            .map_err(|e| (ScraperError::StorageError(e), request.clone()))?;
-
-        Ok(())
     }
 }

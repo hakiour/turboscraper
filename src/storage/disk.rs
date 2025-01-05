@@ -29,6 +29,10 @@ impl StorageConfig for DiskConfig {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
+
+    fn clone_box(&self) -> Box<dyn StorageConfig> {
+        Box::new(self.clone())
+    }
 }
 
 impl From<std::io::Error> for StorageError {

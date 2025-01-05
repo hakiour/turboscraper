@@ -7,7 +7,7 @@ use turboscraper::core::retry::{
 };
 use turboscraper::core::spider::SpiderConfig;
 use turboscraper::scrapers::http_scraper::HttpScraper;
-use turboscraper::storage::{create_storage, StorageType};
+use turboscraper::storage::{create_storage, StorageCategory, StorageManager, StorageType};
 use turboscraper::{Crawler, ScraperResult, Spider};
 
 #[tokio::main]
@@ -51,6 +51,12 @@ async fn main() -> ScraperResult<()> {
     .await
     .unwrap();
 
+    let error_storage = create_storage(StorageType::Disk {
+        path: "error".to_string(),
+    })
+    .await
+    .unwrap();
+
     // Or use MongoDB
     /*
     let storage = create_storage(StorageType::Mongo {
@@ -59,7 +65,8 @@ async fn main() -> ScraperResult<()> {
     }).await?;
     */
 
-    let spider = BookSpider::new(storage).unwrap().with_config(spider_config);
+    let storage_manager = StorageManager::new().register_storage(StorageCategory::Data,storage, "data").register_storage(StorageCategory::Error,error_storage, "error");
+    let spider = BookSpider::new(storage_manager).unwrap().with_config(spider_config);
 
     let scraper = Box::new(HttpScraper::new());
     let crawler = Crawler::new(scraper);

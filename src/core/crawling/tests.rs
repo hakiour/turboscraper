@@ -6,6 +6,7 @@ use crate::core::retry::{
 use crate::core::spider::{ParseResult, SpiderCallback, SpiderConfig, SpiderResponse};
 use crate::http::request::HttpRequest;
 use crate::storage::base::StorageError;
+use crate::storage::StorageManager;
 use crate::{Crawler, ScraperError, ScraperResult, Spider};
 use async_trait::async_trait;
 use parking_lot::RwLock;
@@ -79,6 +80,10 @@ impl Spider for TestSpider {
         "test_spider".to_string()
     }
 
+    fn storage_manager(&self) -> &StorageManager {
+        unimplemented!("Storage manager not needed for test spider")
+    }
+
     fn start_requests(&self) -> Vec<HttpRequest> {
         vec![HttpRequest::new(
             Url::parse("http://example.com").unwrap(),
@@ -111,16 +116,16 @@ impl Spider for TestSpider {
                 error,
             } => {
                 if *count < *max_attempts {
-                    if let Some(_) = error {
+                    if error.is_some() {
                         ScraperResult::Err((
                             ScraperError::StorageError(StorageError::OperationError(
                                 "test storage error".to_string(),
                             )),
-                            Box::new(response.response.from_request),
+                            response.response.from_request.clone(),
                         ))
                     } else {
                         Ok(ParseResult::RetryWithSameContent(Box::new(
-                            response.response,
+                            response.response.clone(),
                         )))
                     }
                 } else {
@@ -132,12 +137,12 @@ impl Spider for TestSpider {
                 error,
             } => {
                 if *count < *max_attempts {
-                    if let Some(_) = error {
+                    if error.is_some() {
                         ScraperResult::Err((
                             ScraperError::StorageError(StorageError::OperationError(
                                 "test storage error".to_string(),
                             )),
-                            Box::new(response.response.from_request),
+                            response.response.from_request.clone(),
                         ))
                     } else {
                         let request = HttpRequest::new(url, SpiderCallback::ParseItem, 0);

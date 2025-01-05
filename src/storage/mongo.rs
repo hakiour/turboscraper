@@ -59,6 +59,10 @@ impl StorageConfig for MongoConfig {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
+
+    fn clone_box(&self) -> Box<dyn StorageConfig> {
+        Box::new(self.clone())
+    }
 }
 
 impl From<MongoError> for StorageError {

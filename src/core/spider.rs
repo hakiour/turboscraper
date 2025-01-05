@@ -5,7 +5,11 @@ use std::collections::HashMap;
 use url::Url;
 
 use super::retry::RetryConfig;
+use super::ScraperError;
 use crate::core::retry::RetryCategory;
+use crate::storage::{
+    IntoStorageData, StorageBackend, StorageCategory, StorageItem, StorageManager,
+};
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub enum SpiderCallback {
@@ -115,4 +119,29 @@ pub trait Spider: Sized {
         category: RetryCategory,
         request: Box<HttpRequest>,
     ) -> ScraperResult<()>;
+
+    fn storage_manager(&self) -> &StorageManager;
+
+    async fn store_data<T: IntoStorageData + Send + Sync + Serialize>(
+        &self,
+        item: StorageItem<T>,
+        category: StorageCategory,
+        request: Box<HttpRequest>,
+    ) -> ScraperResult<()> {
+        let manager = self.storage_manager();
+        let (storage, config) = manager.get_storage(&category);
+
+        let item = StorageItem {
+            url: item.url,
+            timestamp: item.timestamp,
+            data: item.data.into_storage_data(),
+            metadata: item.metadata,
+            id: item.id,
+        };
+
+        storage
+            .store_serialized(item, &**config)
+            .await
+            .map_err(|e| (ScraperError::StorageError(e), request))
+    }
 }
