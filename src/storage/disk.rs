@@ -33,6 +33,10 @@ impl StorageConfig for DiskConfig {
     fn clone_box(&self) -> Box<dyn StorageConfig> {
         Box::new(self.clone())
     }
+
+    fn destination(&self) -> &str {
+        self.subfolder.as_deref().unwrap_or("/output")
+    }
 }
 
 impl From<std::io::Error> for StorageError {

@@ -65,8 +65,12 @@ async fn main() -> ScraperResult<()> {
     }).await?;
     */
 
-    let storage_manager = StorageManager::new().register_storage(StorageCategory::Data,storage, "data").register_storage(StorageCategory::Error,error_storage, "error");
-    let spider = BookSpider::new(storage_manager).unwrap().with_config(spider_config);
+    let storage_manager = StorageManager::new()
+        .register_storage(StorageCategory::Data, storage, "data")
+        .register_storage(StorageCategory::Error, error_storage, "error");
+    let spider = BookSpider::new(storage_manager)
+        .unwrap()
+        .with_config(spider_config);
 
     let scraper = Box::new(HttpScraper::new());
     let crawler = Crawler::new(scraper);

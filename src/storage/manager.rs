@@ -26,9 +26,9 @@ impl StorageManager {
         mut self,
         category: StorageCategory,
         storage: Storage,
-        name: &str,
+        destination: &str,
     ) -> Self {
-        let config = storage.create_config(name);
+        let config = storage.create_config(destination);
         self.storages.insert(category.clone(), (storage, config));
 
         self

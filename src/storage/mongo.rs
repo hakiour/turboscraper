@@ -63,6 +63,10 @@ impl StorageConfig for MongoConfig {
     fn clone_box(&self) -> Box<dyn StorageConfig> {
         Box::new(self.clone())
     }
+
+    fn destination(&self) -> &str {
+        &self.collection
+    }
 }
 
 impl From<MongoError> for StorageError {
@@ -129,7 +133,7 @@ impl StorageBackend for MongoStorage {
 
         self.client
             .database(&self.database_name)
-            .collection(&config.collection)
+            .collection(config.destination())
             .insert_one(doc)
             .await
             .map_err(StorageError::from)?;

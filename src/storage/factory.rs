@@ -23,10 +23,10 @@ pub enum Storage {
 
 #[async_trait]
 impl StorageBackend for Storage {
-    fn create_config(&self, collection_name: &str) -> Box<dyn StorageConfig> {
+    fn create_config(&self, destination: &str) -> Box<dyn StorageConfig> {
         match self {
-            Storage::Disk(storage) => storage.create_config(collection_name),
-            Storage::Mongo(storage) => storage.create_config(collection_name),
+            Storage::Disk(storage) => storage.create_config(destination),
+            Storage::Mongo(storage) => storage.create_config(destination),
         }
     }
 
