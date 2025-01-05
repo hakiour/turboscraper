@@ -149,6 +149,14 @@ impl Spider for TestSpider {
             }
         }
     }
+
+    async fn handle_max_retries(
+        &self,
+        _category: RetryCategory,
+        _request: Box<HttpRequest>,
+    ) -> ScraperResult<()> {
+        Ok(())
+    }
 }
 
 #[tokio::test]

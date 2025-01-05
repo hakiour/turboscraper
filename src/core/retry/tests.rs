@@ -5,6 +5,7 @@ use crate::core::retry::{
 use crate::core::spider::SpiderConfig;
 use crate::core::SpiderCallback;
 use crate::http::HttpRequest;
+use crate::ScraperError;
 use crate::{
     core::retry::mock_scraper::{MockResponse, MockScraper},
     Scraper,
@@ -200,23 +201,33 @@ async fn test_max_retries_exceeded() {
 
     let scraper = MockScraper::new(responses);
     let url = Url::parse("https://example.com").unwrap();
+    let request = HttpRequest::new(url.clone(), SpiderCallback::Bootstrap, 0);
     let response = scraper
         .fetch(
-            HttpRequest::new(url, SpiderCallback::Bootstrap, 0),
+            request,
             &SpiderConfig {
                 retry_config,
                 ..Default::default()
             },
         )
-        .await
-        .unwrap();
+        .await;
 
-    assert_eq!(response.status, 429);
-    assert_eq!(response.retry_count, 2);
-    assert_eq!(
-        response.retry_history.get(&RetryCategory::RateLimit),
-        Some(&2)
-    );
+    assert!(response.is_err());
+    let (error, request) = response.err().unwrap();
+
+    match error {
+        ScraperError::MaxRetriesReached {
+            category,
+            retry_count,
+            url: error_url,
+        } => {
+            assert_eq!(category, RetryCategory::RateLimit);
+            assert_eq!(retry_count, 2);
+            assert_eq!(error_url, Box::new(url.clone()));
+            assert_eq!(request.url, url);
+        }
+        _ => panic!("Expected MaxRetriesReached error"),
+    }
 }
 
 #[tokio::test]

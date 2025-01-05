@@ -118,6 +118,14 @@ impl Crawler {
                         .await;
                     }
                 },
+                Ok(Err((ScraperError::MaxRetriesReached { category, url, .. }, request))) => {
+                    warn!(
+                        "Maximum retries reached for URL: {} (category: {:?})",
+                        url.to_string(),
+                        category
+                    );
+                    spider.handle_max_retries(category, request).await?;
+                }
                 Ok(Err(e)) => {
                     warn!("Error processing request: {}", e.0);
                     match e.0 {

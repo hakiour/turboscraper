@@ -1,5 +1,8 @@
 use crate::{storage::base::StorageError, HttpRequest};
 use thiserror::Error;
+use url::Url;
+
+use super::retry::RetryCategory;
 
 #[derive(Error, Debug)]
 pub enum ScraperError {
@@ -23,6 +26,13 @@ pub enum ScraperError {
 
     #[error("Storage error: {0}")]
     StorageError(#[from] StorageError),
+
+    #[error("Maximum retries of {retry_count} reached for category {category:?} on url: {url}")]
+    MaxRetriesReached {
+        category: RetryCategory,
+        retry_count: usize,
+        url: Box<Url>,
+    },
 }
 
-pub type ScraperResult<T> = Result<T, (ScraperError, Box<HttpRequest>)>; //When we have an error, we want to return the error and the request we were processing when the error occurred
+pub type ScraperResult<T> = Result<T, (ScraperError, Box<HttpRequest>)>;

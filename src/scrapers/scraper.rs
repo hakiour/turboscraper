@@ -1,6 +1,6 @@
 use crate::core::spider::SpiderConfig;
 use crate::http::request::HttpRequest;
-use crate::{HttpResponse, ScraperResult, StatsTracker};
+use crate::{HttpResponse, ScraperError, ScraperResult, StatsTracker};
 use async_trait::async_trait;
 use chrono::Utc;
 use log::{debug, info, warn};
@@ -43,19 +43,27 @@ pub trait Scraper: Send + Sync {
                 self.stats().record_retry(format!("{:?}", category));
                 let state = config.retry_config.get_retry_state(&url);
                 let attempt = state.counts.get(&category).unwrap();
+                let max_retries = config
+                    .retry_config
+                    .categories
+                    .get(&category)
+                    .map(|c| c.max_retries)
+                    .unwrap_or(0);
+
+                if attempt >= &max_retries {
+                    return Err((
+                        ScraperError::MaxRetriesReached {
+                            category: category.clone(),
+                            retry_count: *attempt,
+                            url: Box::new(url.clone()),
+                        },
+                        Box::new(request),
+                    ));
+                }
 
                 warn!(
                     "Retry triggered for URL: {} (category={:?}, attempt={}/{}, delay={:?})",
-                    url,
-                    category,
-                    attempt,
-                    config
-                        .retry_config
-                        .categories
-                        .get(&category)
-                        .map(|c| c.max_retries)
-                        .unwrap_or(0),
-                    delay
+                    url, category, attempt, max_retries, delay
                 );
 
                 sleep(delay).await;

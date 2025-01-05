@@ -1,10 +1,11 @@
+use crate::core::retry::RetryCategory;
 use crate::core::spider::{ParseResult, SpiderConfig, SpiderResponse};
 use crate::core::SpiderCallback;
 use crate::http::{HttpRequest, HttpResponse};
 use crate::storage::factory::Storage;
 use crate::storage::{IntoStorageData, StorageBackend};
 use crate::storage::{StorageConfig, StorageItem};
-use crate::{ScraperResult, Spider};
+use crate::{ScraperError, ScraperResult, Spider};
 use async_trait::async_trait;
 use chrono::Utc;
 use log::error;
@@ -214,5 +215,35 @@ impl Spider for BookSpider {
                 Ok(ParseResult::Skip)
             }
         }
+    }
+
+    async fn handle_max_retries(
+        &self,
+        category: RetryCategory,
+        request: Box<HttpRequest>,
+    ) -> ScraperResult<()> {
+        // Create an error record
+        let error_item = StorageItem {
+            url: request.url.clone(),
+            timestamp: Utc::now(),
+            data: json!({
+                "error": format!("Max retries reached for category {:?} on url: {:?}", category, request.url),
+                "spider": self.name(),
+                "request": *request,
+            }).into_storage_data(),
+            metadata: Some(json!({
+                "error_type": "max_retries",
+                "category": format!("{:?}", category),
+            })),
+            id: format!("{}_errors", self.name()),
+        };
+
+        // Store the error
+        self.storage
+            .store_serialized(error_item, &*self.storage_config)
+            .await
+            .map_err(|e| (ScraperError::StorageError(e), request.clone()))?;
+
+        Ok(())
     }
 }

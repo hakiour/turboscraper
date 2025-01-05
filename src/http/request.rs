@@ -1,16 +1,18 @@
 use reqwest::Method;
+use serde::Serialize;
 use serde_json::Value;
 use std::collections::HashMap;
 use url::Url;
 
 use crate::core::SpiderCallback;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct HttpRequest {
     pub url: Url,
     pub callback: SpiderCallback,
     pub meta: Option<Value>,
     pub depth: usize, // Tracks the actual depth of the request
+    #[serde(with = "http_serde::method")]
     pub method: Method,
     pub headers: HashMap<String, String>,
     pub body: Option<String>,

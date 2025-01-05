@@ -1,11 +1,13 @@
 use crate::{http::HttpRequest, HttpResponse, ScraperResult};
 use async_trait::async_trait;
+use serde::Serialize;
 use std::collections::HashMap;
 use url::Url;
 
 use super::retry::RetryConfig;
+use crate::core::retry::RetryCategory;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub enum SpiderCallback {
     Bootstrap,       // For initial page
     ParseItem,       // For parsing detail pages (e.g., product pages)
@@ -104,4 +106,13 @@ pub trait Spider: Sized {
         self.set_config(config);
         self
     }
+
+    /// Handle maximum retries reached error
+    /// This is called when a request has reached its maximum retry attempts
+    /// Implementations can choose to store the error, log it, or take other actions
+    async fn handle_max_retries(
+        &self,
+        category: RetryCategory,
+        request: Box<HttpRequest>,
+    ) -> ScraperResult<()>;
 }
