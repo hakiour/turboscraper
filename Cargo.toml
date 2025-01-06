@@ -30,10 +30,12 @@ erased-serde = "0.4"
 anyhow = "1.0"
 http-serde = "2.1.1"
 mongodb = { version = "3.1.1", optional = true }
+rdkafka = { version = "0.37.0", optional = true }
 
 [features]
 default = []
 mongodb = ["dep:mongodb"]
+kafka = ["dep:rdkafka"]
 
 [dev-dependencies]
 wiremock = "0.6"

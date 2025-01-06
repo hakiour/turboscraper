@@ -1,3 +1,5 @@
+#[cfg(feature = "kafka")]
+use super::KafkaStorage;
 #[cfg(feature = "mongodb")]
 use super::MongoStorage;
 use super::{base::StorageError, DiskStorage, StorageBackend, StorageConfig, StorageItem};
@@ -14,6 +16,11 @@ pub enum StorageType {
         connection_string: String,
         database: String,
     },
+    #[cfg(feature = "kafka")]
+    Kafka {
+        brokers: String,
+        client_id: String,
+    },
 }
 
 #[derive(Clone)]
@@ -21,6 +28,8 @@ pub enum Storage {
     Disk(Box<DiskStorage>),
     #[cfg(feature = "mongodb")]
     Mongo(Box<MongoStorage>),
+    #[cfg(feature = "kafka")]
+    Kafka(Box<KafkaStorage>),
 }
 
 #[async_trait]
@@ -30,6 +39,8 @@ impl StorageBackend for Storage {
             Storage::Disk(storage) => storage.create_config(destination),
             #[cfg(feature = "mongodb")]
             Storage::Mongo(storage) => storage.create_config(destination),
+            #[cfg(feature = "kafka")]
+            Storage::Kafka(storage) => storage.create_config(destination),
         }
     }
 
@@ -42,6 +53,8 @@ impl StorageBackend for Storage {
             Storage::Disk(storage) => storage.store_serialized(item, config).await,
             #[cfg(feature = "mongodb")]
             Storage::Mongo(storage) => storage.store_serialized(item, config).await,
+            #[cfg(feature = "kafka")]
+            Storage::Kafka(storage) => storage.store_serialized(item, config).await,
         }
     }
 }
@@ -57,6 +70,10 @@ pub async fn create_storage(storage_type: StorageType) -> Result<Storage, Error>
             MongoStorage::new(&connection_string, &database)
                 .await
                 .unwrap(),
+        ))),
+        #[cfg(feature = "kafka")]
+        StorageType::Kafka { brokers, client_id } => Ok(Storage::Kafka(Box::new(
+            KafkaStorage::new(&brokers, &client_id).unwrap(),
         ))),
     }
 }
