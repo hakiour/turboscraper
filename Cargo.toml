@@ -26,10 +26,14 @@ chrono = { version = "0.4", features = ["serde"] }
 parking_lot = "0.12"
 regex = "1.10"
 uuid = { version = "1.6", features = ["v7"] }
-mongodb = { version = "3.1.1" }
 erased-serde = "0.4"
 anyhow = "1.0"
 http-serde = "2.1.1"
+mongodb = { version = "3.1.1", optional = true }
+
+[features]
+default = []
+mongodb = ["dep:mongodb"]
 
 [dev-dependencies]
 wiremock = "0.6"

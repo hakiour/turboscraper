@@ -1,6 +1,6 @@
-use super::{
-    base::StorageError, DiskStorage, MongoStorage, StorageBackend, StorageConfig, StorageItem,
-};
+#[cfg(feature = "mongodb")]
+use super::MongoStorage;
+use super::{base::StorageError, DiskStorage, StorageBackend, StorageConfig, StorageItem};
 use anyhow::Error;
 use async_trait::async_trait;
 use erased_serde::Serialize as ErasedSerialize;
@@ -9,6 +9,7 @@ pub enum StorageType {
     Disk {
         path: String,
     },
+    #[cfg(feature = "mongodb")]
     Mongo {
         connection_string: String,
         database: String,
@@ -18,6 +19,7 @@ pub enum StorageType {
 #[derive(Clone)]
 pub enum Storage {
     Disk(Box<DiskStorage>),
+    #[cfg(feature = "mongodb")]
     Mongo(Box<MongoStorage>),
 }
 
@@ -26,6 +28,7 @@ impl StorageBackend for Storage {
     fn create_config(&self, destination: &str) -> Box<dyn StorageConfig> {
         match self {
             Storage::Disk(storage) => storage.create_config(destination),
+            #[cfg(feature = "mongodb")]
             Storage::Mongo(storage) => storage.create_config(destination),
         }
     }
@@ -37,6 +40,7 @@ impl StorageBackend for Storage {
     ) -> Result<(), StorageError> {
         match self {
             Storage::Disk(storage) => storage.store_serialized(item, config).await,
+            #[cfg(feature = "mongodb")]
             Storage::Mongo(storage) => storage.store_serialized(item, config).await,
         }
     }
@@ -45,6 +49,7 @@ impl StorageBackend for Storage {
 pub async fn create_storage(storage_type: StorageType) -> Result<Storage, Error> {
     match storage_type {
         StorageType::Disk { path } => Ok(Storage::Disk(Box::new(DiskStorage::new(path).unwrap()))),
+        #[cfg(feature = "mongodb")]
         StorageType::Mongo {
             connection_string,
             database,
