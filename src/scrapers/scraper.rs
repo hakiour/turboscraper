@@ -32,14 +32,14 @@ pub trait Scraper: Send + Sync {
             debug!(
                 "Received response: status={}, body_length={}",
                 response.status,
-                response.body.len()
+                response.decoded_body.len()
             );
 
-            if let Some((category, delay)) =
-                config
-                    .retry_config
-                    .should_retry_request(&url, response.status, &response.body)
-            {
+            if let Some((category, delay)) = config.retry_config.should_retry_request(
+                &url,
+                response.status,
+                &response.decoded_body,
+            ) {
                 self.stats().record_retry(format!("{:?}", category));
                 let state = config.retry_config.get_retry_state(&url);
                 let attempt = state.counts.get(&category).unwrap();
@@ -79,7 +79,7 @@ pub trait Scraper: Send + Sync {
 
             let duration = Utc::now().signed_duration_since(start_time);
             self.stats()
-                .record_request(response.status, response.body.len(), duration);
+                .record_request(response.status, response.decoded_body.len(), duration);
 
             return Ok(HttpResponse {
                 retry_count: state.total_retries,

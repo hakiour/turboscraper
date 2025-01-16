@@ -71,8 +71,7 @@ async fn main() -> ScraperResult<()> {
     let spider = BookSpider::new(storage_manager)
         .unwrap()
         .with_config(spider_config);
-
-    let scraper = Box::new(HttpScraper::new());
+    let scraper = Box::new(HttpScraper::new().unwrap());
     let crawler = Crawler::new(scraper);
     crawler.run(spider).await?;
 

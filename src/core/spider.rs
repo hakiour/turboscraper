@@ -2,7 +2,6 @@ use crate::{http::HttpRequest, HttpResponse, ScraperResult};
 use async_trait::async_trait;
 use serde::Serialize;
 use std::collections::HashMap;
-use url::Url;
 
 use super::retry::RetryConfig;
 use super::ScraperError;
@@ -26,6 +25,14 @@ pub enum ParseResult {
     Stop,
     RetryWithSameContent(Box<HttpResponse>),
     RetryWithNewContent(Box<HttpRequest>), // Include the request to retry
+}
+
+#[derive(Debug)]
+pub enum ParsedData {
+    Item(serde_json::Value),
+    Items(Vec<serde_json::Value>),
+    Raw(String),
+    Empty,
 }
 
 #[derive(Debug, Clone)]
@@ -91,12 +98,24 @@ pub trait Spider: Sized {
     fn set_config(&mut self, config: SpiderConfig);
     fn start_requests(&self) -> Vec<HttpRequest>;
 
-    async fn parse(
+    /// Extract data from the response and determine the next actions to take.
+    /// This is a synchronous operation that doesn't involve any I/O.
+    fn parse(&self, response: &SpiderResponse) -> ScraperResult<(ParseResult, ParsedData)>;
+
+    /// Persist the extracted data to the configured storage backend.
+    /// This is an asynchronous operation that handles I/O.
+    async fn persist_extracted_data(
         &self,
-        response: SpiderResponse,
-        url: Url,
-        depth: usize,
-    ) -> ScraperResult<ParseResult>;
+        data: ParsedData,
+        response: &SpiderResponse,
+    ) -> ScraperResult<()>;
+
+    /// Main coordinator that handles the full extraction and persistence flow.
+    async fn process_response(&self, response: &SpiderResponse) -> ScraperResult<ParseResult> {
+        let (parse_result, parsed_data) = self.parse(response)?;
+        self.persist_extracted_data(parsed_data, response).await?;
+        Ok(parse_result)
+    }
 
     fn get_initial_callback(&self) -> SpiderCallback {
         SpiderCallback::Bootstrap

@@ -59,9 +59,7 @@ impl Crawler {
             };
 
             futures.push(spawn(async move {
-                spider_clone
-                    .parse(spider_response, response.url, response.from_request.depth)
-                    .await
+                spider_clone.process_response(&spider_response).await
             }));
         }
     }
@@ -195,7 +193,7 @@ impl Crawler {
                 futures.next().await;
             }
 
-            self.process_request(request.clone(), Arc::clone(&spider), futures, request.depth)
+            self.process_request(request.clone(), Arc::clone(&spider), futures)
                 .await;
         }
     }
@@ -205,7 +203,6 @@ impl Crawler {
         request: HttpRequest,
         spider: Arc<S>,
         futures: &mut FuturesUnordered<JoinHandle<ScraperResult<ParseResult>>>,
-        depth: usize,
     ) {
         let spider_clone = Arc::clone(&spider);
         let scraper = self.scraper.box_clone();
@@ -217,9 +214,7 @@ impl Crawler {
                 response,
                 callback: request.callback.clone(),
             };
-            spider_clone
-                .parse(spider_response, request.url, depth)
-                .await
+            spider_clone.process_response(&spider_response).await
         }));
     }
 }

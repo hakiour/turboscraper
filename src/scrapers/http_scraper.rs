@@ -1,17 +1,37 @@
 use async_trait::async_trait;
 use chrono::Utc;
-use reqwest::{header, Client};
+use reqwest::{header, Client, ClientBuilder};
 use serde_json::json;
 use std::collections::HashMap;
 use std::sync::Arc;
+use thiserror::Error;
 
 use super::Scraper;
 use crate::core::spider::SpiderConfig;
 use crate::http::request::HttpRequest;
-use crate::http::ResponseType;
+use crate::http::response::ResponseType;
 use crate::HttpResponse;
-use crate::{ScraperResult, StatsTracker};
+use crate::{ScraperError, ScraperResult, StatsTracker};
+
 const DEFAULT_USER_AGENT: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+
+#[derive(Debug, Error)]
+pub enum HttpScraperError {
+    #[error("HTTP client error: {0}")]
+    HttpError(#[from] reqwest::Error),
+    #[error("Invalid header name: {0}")]
+    InvalidHeaderName(#[from] header::InvalidHeaderName),
+    #[error("Invalid header value: {0}")]
+    InvalidHeaderValue(#[from] header::InvalidHeaderValue),
+    #[error("Failed to decode response body: {0}")]
+    DecodingError(String),
+}
+
+impl From<HttpScraperError> for ScraperError {
+    fn from(err: HttpScraperError) -> Self {
+        ScraperError::ExtractionError(err.to_string())
+    }
+}
 
 #[derive(Clone)]
 pub struct HttpScraper {
@@ -21,22 +41,23 @@ pub struct HttpScraper {
 
 impl Default for HttpScraper {
     fn default() -> Self {
-        Self::new()
+        Self::new().expect("Failed to create default HttpScraper")
     }
 }
 
 impl HttpScraper {
-    pub fn new() -> Self {
-        Self {
-            client: Client::builder()
-                .user_agent(DEFAULT_USER_AGENT)
-                .build()
-                .unwrap(),
+    pub fn new() -> Result<Self, HttpScraperError> {
+        let client = ClientBuilder::new()
+            .user_agent(DEFAULT_USER_AGENT)
+            .build()?;
+
+        Ok(Self {
+            client,
             stats: Arc::new(StatsTracker::new()),
-        }
+        })
     }
 
-    pub fn with_headers(mut self, headers: Vec<(&str, &str)>) -> Self {
+    pub fn with_headers(mut self, headers: Vec<(&str, &str)>) -> Result<Self, HttpScraperError> {
         let mut header_map = header::HeaderMap::new();
         header_map.insert(
             header::USER_AGENT,
@@ -44,20 +65,47 @@ impl HttpScraper {
         );
 
         for (key, value) in headers {
-            if let (Ok(name), Ok(val)) = (
-                header::HeaderName::from_bytes(key.as_bytes()),
-                header::HeaderValue::from_str(value),
-            ) {
-                header_map.insert(name, val);
-            }
+            let name = header::HeaderName::from_bytes(key.as_bytes())?;
+            let value = header::HeaderValue::from_str(value)?;
+            header_map.insert(name, value);
         }
 
-        self.client = Client::builder()
-            .default_headers(header_map)
-            .build()
-            .unwrap();
+        self.client = ClientBuilder::new().default_headers(header_map).build()?;
 
-        self
+        Ok(self)
+    }
+
+    fn extract_headers(response: &reqwest::Response) -> HashMap<String, String> {
+        response
+            .headers()
+            .iter()
+            .filter_map(|(k, v)| v.to_str().ok().map(|val| (k.to_string(), val.to_string())))
+            .collect()
+    }
+
+    fn detect_content_type(headers: &HashMap<String, String>, body: &str) -> ResponseType {
+        if let Some(content_type) = headers.get("content-type") {
+            if content_type.contains("text/html") {
+                ResponseType::Html
+            } else if content_type.contains("application/json") {
+                ResponseType::Json
+            } else if content_type.contains("text/") {
+                ResponseType::Text
+            } else {
+                ResponseType::Binary
+            }
+        } else {
+            // Try to detect content type from body
+            if body.trim_start().starts_with('{') || body.trim_start().starts_with('[') {
+                ResponseType::Json
+            } else if body.trim_start().starts_with("<!DOCTYPE")
+                || body.trim_start().starts_with("<html")
+            {
+                ResponseType::Html
+            } else {
+                ResponseType::Text
+            }
+        }
     }
 }
 
@@ -82,21 +130,38 @@ impl Scraper for HttpScraper {
             req = req.header(key, value);
         }
 
-        if let Some(body) = request.body {
+        if let Some(body) = request.body.clone() {
             req = req.body(body);
         }
 
         let start_time = Utc::now();
-        let response = req.send().await.unwrap();
-        let status = response.status().as_u16();
-        let headers = response.headers().clone();
-        let body = response.text().await.unwrap();
-        let end_time = Utc::now();
+        let request_for_error = request.clone();
+        let response = req.send().await.map_err(|e| {
+            (
+                ScraperError::from(HttpScraperError::HttpError(e)),
+                Box::new(request_for_error),
+            )
+        })?;
 
-        let headers: HashMap<String, String> = headers
-            .iter()
-            .map(|(k, v)| (k.to_string(), v.to_str().unwrap_or_default().to_string()))
-            .collect();
+        let status = response.status().as_u16();
+        let headers = Self::extract_headers(&response);
+
+        // Get raw bytes and decoded text
+        let raw_body = response.bytes().await.map_err(|e| {
+            (
+                ScraperError::from(HttpScraperError::HttpError(e)),
+                Box::new(request.clone()),
+            )
+        })?;
+
+        let decoded_body = String::from_utf8(raw_body.to_vec()).map_err(|e| {
+            (
+                ScraperError::from(HttpScraperError::DecodingError(e.to_string())),
+                Box::new(request.clone()),
+            )
+        })?;
+
+        let end_time = Utc::now();
 
         let meta = json!({
             "request": {
@@ -104,20 +169,24 @@ impl Scraper for HttpScraper {
             },
             "response": {
                 "elapsed": (end_time - start_time).num_milliseconds(),
-                "content_length": body.len(),
+                "content_length": raw_body.len(),
+                "encoding": headers.get("content-encoding").cloned().unwrap_or_default(),
             }
         });
+
+        let response_type = Self::detect_content_type(&headers, &decoded_body);
 
         Ok(HttpResponse {
             url: request.url,
             status,
             headers,
-            body,
+            raw_body: raw_body.to_vec(),
+            decoded_body,
             timestamp: start_time,
             retry_count: 0,
             retry_history: HashMap::new(),
             meta: Some(meta),
-            response_type: ResponseType::Html,
+            response_type,
             from_request: Box::new(from_request),
         })
     }
@@ -145,15 +214,15 @@ mod tests {
     use wiremock::matchers::{body_string, header, method, path};
     use wiremock::{Mock, MockServer, ResponseTemplate};
 
-    async fn setup() -> (HttpScraper, MockServer) {
+    async fn setup() -> Result<(HttpScraper, MockServer), HttpScraperError> {
         let server = MockServer::start().await;
-        let scraper = HttpScraper::new();
-        (scraper, server)
+        let scraper = HttpScraper::new()?;
+        Ok((scraper, server))
     }
 
     #[tokio::test]
     async fn test_get_request() {
-        let (scraper, mock_server) = setup().await;
+        let (scraper, mock_server) = setup().await.unwrap();
 
         Mock::given(method("GET"))
             .and(path("/test"))
@@ -178,12 +247,13 @@ mod tests {
             .unwrap();
 
         assert_eq!(response.status, 200);
-        assert_eq!(response.body, "Hello, World!");
+        assert_eq!(response.decoded_body, "Hello, World!");
+        assert_eq!(response.response_type, ResponseType::Text);
     }
 
     #[tokio::test]
     async fn test_post_request() {
-        let (scraper, mock_server) = setup().await;
+        let (scraper, mock_server) = setup().await.unwrap();
         let body = json!({"key": "value"}).to_string();
 
         Mock::given(method("POST"))
@@ -207,12 +277,13 @@ mod tests {
             .unwrap();
 
         assert_eq!(response.status, 201);
-        assert_eq!(response.body, "{\"status\": \"created\"}");
+        assert_eq!(response.decoded_body, "{\"status\": \"created\"}");
+        assert_eq!(response.response_type, ResponseType::Json);
     }
 
     #[tokio::test]
     async fn test_error_handling() {
-        let (scraper, mock_server) = setup().await;
+        let (scraper, mock_server) = setup().await.unwrap();
 
         Mock::given(method("GET"))
             .and(path("/error"))
@@ -233,14 +304,17 @@ mod tests {
             .unwrap();
 
         assert_eq!(response.status, 404);
-        assert_eq!(response.body, "Not Found");
+        assert_eq!(response.decoded_body, "Not Found");
+        assert_eq!(response.response_type, ResponseType::Text);
     }
 
     #[tokio::test]
-    async fn test_custom_user_agent() {
-        let (_, mock_server) = setup().await;
+    async fn test_custom_headers() {
+        let (scraper, mock_server) = setup().await.unwrap();
         let custom_ua = "CustomBot/1.0";
-        let scraper = HttpScraper::new().with_headers(vec![("user-agent", custom_ua)]);
+        let scraper = scraper
+            .with_headers(vec![("user-agent", custom_ua)])
+            .unwrap();
 
         Mock::given(method("GET"))
             .and(path("/"))
@@ -259,5 +333,13 @@ mod tests {
             .unwrap();
 
         assert_eq!(response.status, 200);
+        assert_eq!(response.decoded_body, "ok");
+    }
+
+    #[tokio::test]
+    async fn test_invalid_headers() {
+        let scraper = HttpScraper::new().unwrap();
+        let result = scraper.with_headers(vec![("invalid\0header", "value")]);
+        assert!(result.is_err());
     }
 }

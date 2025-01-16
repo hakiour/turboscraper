@@ -1,5 +1,5 @@
 use crate::core::retry::RetryCategory;
-use crate::core::spider::{ParseResult, SpiderConfig, SpiderResponse};
+use crate::core::spider::{ParseResult, ParsedData, SpiderConfig, SpiderResponse};
 use crate::core::SpiderCallback;
 use crate::http::{HttpRequest, HttpResponse};
 use crate::storage::{StorageCategory, StorageItem, StorageManager};
@@ -26,14 +26,11 @@ impl BookSpider {
         })
     }
 
-    fn parse_book_list(
-        &self,
-        response: HttpResponse,
-        url: Url,
-        depth: usize,
-    ) -> ScraperResult<Vec<HttpRequest>> {
-        let document = Html::parse_document(&response.body);
+    fn parse_book_list(&self, response: &HttpResponse) -> ScraperResult<Vec<HttpRequest>> {
+        let document = Html::parse_document(&response.decoded_body);
         let book_selector = Selector::parse("article.product_pod h3 a").unwrap();
+        let url = response.from_request.url.clone();
+        let depth = response.from_request.depth;
 
         let mut requests = Vec::new();
         for element in document.select(&book_selector) {
@@ -53,14 +50,11 @@ impl BookSpider {
         Ok(requests)
     }
 
-    fn next_page(
-        &self,
-        response: HttpResponse,
-        url: Url,
-        depth: usize,
-    ) -> ScraperResult<Vec<HttpRequest>> {
-        let document = Html::parse_document(&response.body);
+    fn next_page(&self, response: &HttpResponse) -> ScraperResult<Vec<HttpRequest>> {
+        let document = Html::parse_document(&response.decoded_body);
         let next_page_selector = Selector::parse("li.next a").unwrap();
+        let url = response.from_request.url.clone();
+        let depth = response.from_request.depth;
         let mut requests = Vec::new();
 
         if let Some(next_element) = document.select(&next_page_selector).next() {
@@ -75,35 +69,6 @@ impl BookSpider {
             }
         }
         Ok(requests)
-    }
-
-    async fn parse_book(
-        &self,
-        response: HttpResponse,
-        url: Url,
-        depth: usize,
-    ) -> ScraperResult<()> {
-        let details = self.parse_book_details(&response.body);
-
-        let item = StorageItem {
-            url,
-            timestamp: Utc::now(),
-            data: details,
-            metadata: Some(json!({
-                "depth": depth,
-                "parser": "book_details",
-                "response": {
-                    "status": response.status,
-                    "headers": response.headers,
-                }
-            })),
-            id: self.name(),
-        };
-
-        self.store_data(item, StorageCategory::Data, response.from_request)
-            .await?;
-
-        Ok(())
     }
 
     fn parse_book_details(&self, body: &str) -> Value {
@@ -167,6 +132,7 @@ impl Spider for BookSpider {
     fn config(&self) -> &SpiderConfig {
         &self.config
     }
+
     fn set_config(&mut self, config: SpiderConfig) {
         self.config = config;
     }
@@ -187,34 +153,57 @@ impl Spider for BookSpider {
             .collect()
     }
 
-    /// Main `parse` entrypoint
-    async fn parse(
-        &self,
-        spider_response: SpiderResponse,
-        url: Url,
-        depth: usize,
-    ) -> ScraperResult<ParseResult> {
+    fn parse(&self, spider_response: &SpiderResponse) -> ScraperResult<(ParseResult, ParsedData)> {
         match spider_response.callback {
-            // Bootstrap or pagination pages list multiple books
             SpiderCallback::Bootstrap | SpiderCallback::ParsePagination => {
-                let mut requests =
-                    self.parse_book_list(spider_response.response.clone(), url.clone(), depth)?;
-                let next_page_requests = self.next_page(spider_response.response, url, depth)?;
+                let mut requests = self.parse_book_list(&spider_response.response)?;
+                let next_page_requests = self.next_page(&spider_response.response)?;
                 requests.extend(next_page_requests);
-                Ok(ParseResult::Continue(requests))
+                Ok((ParseResult::Continue(requests), ParsedData::Empty))
             }
-            // A single item page
             SpiderCallback::ParseItem => {
-                self.parse_book(spider_response.response, url, depth)
-                    .await?;
-                Ok(ParseResult::Skip)
+                let details = self.parse_book_details(&spider_response.response.decoded_body);
+                Ok((ParseResult::Skip, ParsedData::Item(details)))
             }
-            // Any custom callback is currently unhandled
             SpiderCallback::Custom(ref name) => {
                 error!("Unhandled custom callback: {}", name);
-                Ok(ParseResult::Skip)
+                Ok((ParseResult::Skip, ParsedData::Empty))
             }
         }
+    }
+
+    async fn persist_extracted_data(
+        &self,
+        data: ParsedData,
+        response: &SpiderResponse,
+    ) -> ScraperResult<()> {
+        if let ParsedData::Item(details) = data {
+            let url = response.response.from_request.url.clone();
+            let depth = response.response.from_request.depth;
+
+            let item = StorageItem {
+                url: url.clone(),
+                timestamp: Utc::now(),
+                data: details,
+                metadata: Some(json!({
+                    "depth": depth,
+                    "parser": "book_details",
+                    "response": {
+                        "status": response.response.status,
+                        "headers": response.response.headers,
+                    }
+                })),
+                id: self.name(),
+            };
+
+            self.store_data(
+                item,
+                StorageCategory::Data,
+                response.response.from_request.clone(),
+            )
+            .await?;
+        }
+        Ok(())
     }
 
     async fn handle_max_retries(

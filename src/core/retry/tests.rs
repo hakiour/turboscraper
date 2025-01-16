@@ -56,7 +56,7 @@ async fn test_rate_limit_retry() {
         .unwrap();
 
     assert_eq!(response.status, 200);
-    assert_eq!(response.body, "Success");
+    assert_eq!(response.decoded_body, "Success");
     assert_eq!(response.retry_count, 1);
     assert_eq!(
         response.retry_history.get(&RetryCategory::RateLimit),
@@ -110,7 +110,7 @@ async fn test_bot_detection_retry() {
         .unwrap();
 
     assert_eq!(response.status, 200);
-    assert_eq!(response.body, "Welcome user");
+    assert_eq!(response.decoded_body, "Welcome user");
     assert_eq!(response.retry_count, 1);
     assert_eq!(
         response.retry_history.get(&RetryCategory::BotDetection),
@@ -293,7 +293,7 @@ async fn test_multiple_retry_categories() {
         .unwrap();
 
     assert_eq!(response.status, 200);
-    assert_eq!(response.body, "Success");
+    assert_eq!(response.decoded_body, "Success");
     assert_eq!(response.retry_count, 2);
     assert_eq!(
         response.retry_history.get(&RetryCategory::RateLimit),
@@ -351,7 +351,7 @@ async fn test_regex_content_retry() {
         .unwrap();
 
     assert_eq!(response.status, 200);
-    assert_eq!(response.body, "Success");
+    assert_eq!(response.decoded_body, "Success");
     assert_eq!(response.retry_count, 1);
     assert_eq!(
         response.retry_history.get(&RetryCategory::Blacklisted),
@@ -405,7 +405,7 @@ async fn test_custom_category() {
         .unwrap();
 
     assert_eq!(response.status, 200);
-    assert_eq!(response.body, "Success");
+    assert_eq!(response.decoded_body, "Success");
     assert_eq!(response.retry_count, 1);
     assert_eq!(
         response

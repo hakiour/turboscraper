@@ -11,8 +11,8 @@ keywords = ["scraping", "crawler", "spider", "web", "async"]
 categories = ["web-programming", "asynchronous", "web-programming::http-client"]
 
 [dependencies]
+reqwest = { version = "0.12.12", features = ["json", "gzip", "brotli", "deflate"] }
 tokio = { version = "1.0", features = ["full"] }
-reqwest = { version = "0.12", features = ["json"] }
 scraper = "0.22"
 futures = "0.3"
 async-trait = "0.1.83"
@@ -31,6 +31,7 @@ anyhow = "1.0"
 http-serde = "2.1.1"
 mongodb = { version = "3.1.1", optional = true }
 rdkafka = { version = "0.37.0", optional = true }
+brotli = "7.0"
 
 [features]
 default = []

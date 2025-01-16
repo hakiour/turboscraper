@@ -3,7 +3,7 @@ use crate::core::retry::{
     BackoffPolicy, CategoryConfig, ContentRetryCondition, ParseRetryCondition, ParseRetryType,
     RetryCategory, RetryCondition, RetryConfig,
 };
-use crate::core::spider::{ParseResult, SpiderCallback, SpiderConfig, SpiderResponse};
+use crate::core::spider::{ParseResult, ParsedData, SpiderCallback, SpiderConfig, SpiderResponse};
 use crate::http::request::HttpRequest;
 use crate::storage::base::StorageError;
 use crate::storage::StorageManager;
@@ -100,36 +100,29 @@ impl Spider for TestSpider {
         self.config = config;
     }
 
-    async fn parse(
-        &self,
-        response: SpiderResponse,
-        url: Url,
-        _depth: usize,
-    ) -> ScraperResult<ParseResult> {
+    fn parse(&self, response: &SpiderResponse) -> ScraperResult<(ParseResult, ParsedData)> {
         let mut count = self.retry_count.write();
         *count += 1;
 
-        match &self.retry_behavior {
-            RetryBehavior::NoRetry => Ok(ParseResult::Skip),
+        let parsed_data = ParsedData::Empty;
+        let parse_result = match &self.retry_behavior {
+            RetryBehavior::NoRetry => ParseResult::Skip,
             RetryBehavior::RetryWithSame {
                 max_attempts,
                 error,
             } => {
                 if *count < *max_attempts {
                     if error.is_some() {
-                        ScraperResult::Err((
+                        return ScraperResult::Err((
                             ScraperError::StorageError(StorageError::OperationError(
                                 "test storage error".to_string(),
                             )),
                             response.response.from_request.clone(),
-                        ))
-                    } else {
-                        Ok(ParseResult::RetryWithSameContent(Box::new(
-                            response.response.clone(),
-                        )))
+                        ));
                     }
+                    ParseResult::RetryWithSameContent(Box::new(response.response.clone()))
                 } else {
-                    Ok(ParseResult::Skip)
+                    ParseResult::Skip
                 }
             }
             RetryBehavior::RetryWithNew {
@@ -138,21 +131,34 @@ impl Spider for TestSpider {
             } => {
                 if *count < *max_attempts {
                     if error.is_some() {
-                        ScraperResult::Err((
+                        return ScraperResult::Err((
                             ScraperError::StorageError(StorageError::OperationError(
                                 "test storage error".to_string(),
                             )),
                             response.response.from_request.clone(),
-                        ))
-                    } else {
-                        let request = HttpRequest::new(url, SpiderCallback::ParseItem, 0);
-                        Ok(ParseResult::RetryWithNewContent(Box::new(request)))
+                        ));
                     }
+                    let request = HttpRequest::new(
+                        response.response.from_request.url.clone(),
+                        SpiderCallback::ParseItem,
+                        response.response.from_request.depth,
+                    );
+                    ParseResult::RetryWithNewContent(Box::new(request))
                 } else {
-                    Ok(ParseResult::Skip)
+                    ParseResult::Skip
                 }
             }
-        }
+        };
+
+        Ok((parse_result, parsed_data))
+    }
+
+    async fn persist_extracted_data(
+        &self,
+        _data: ParsedData,
+        _response: &SpiderResponse,
+    ) -> ScraperResult<()> {
+        Ok(())
     }
 
     async fn handle_max_retries(
