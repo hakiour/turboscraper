@@ -38,31 +38,37 @@ pub enum ContentEncoding {
 }
 
 impl HttpResponse {
-    pub fn get_content_type(&self) -> ResponseType {
-        if let Some(content_type) = self.headers.get("content-type") {
-            if content_type.contains("text/html") {
-                ResponseType::Html
-            } else if content_type.contains("application/json") {
+    pub fn detect_content_type(
+        &self,
+        headers: &HashMap<String, String>,
+        body: &str,
+    ) -> ResponseType {
+        fn detect_content_type_from_body(body: &str) -> ResponseType {
+            let trimmed_body = body.trim_start();
+            if trimmed_body.starts_with('{') || trimmed_body.starts_with('[') {
                 ResponseType::Json
-            } else if content_type.contains("text/") {
-                ResponseType::Text
-            } else {
-                ResponseType::Binary
-            }
-        } else {
-            // Try to detect content type from body
-            if self.decoded_body.trim_start().starts_with('{')
-                || self.decoded_body.trim_start().starts_with('[')
-            {
-                ResponseType::Json
-            } else if self.decoded_body.trim_start().starts_with("<!DOCTYPE")
-                || self.decoded_body.trim_start().starts_with("<html")
-            {
+            } else if trimmed_body.starts_with("<!DOCTYPE") || trimmed_body.starts_with("<html") {
                 ResponseType::Html
             } else {
                 ResponseType::Text
             }
         }
+
+        headers
+            .get("content-type")
+            .filter(|content_type| !content_type.trim().is_empty())
+            .map(|content_type| {
+                if content_type.contains("text/html") {
+                    ResponseType::Html
+                } else if content_type.contains("application/json") {
+                    ResponseType::Json
+                } else if content_type.contains("text/") {
+                    ResponseType::Text
+                } else {
+                    ResponseType::Binary
+                }
+            })
+            .unwrap_or_else(|| detect_content_type_from_body(body))
     }
 
     pub fn get_content_encoding(&self) -> ContentEncoding {

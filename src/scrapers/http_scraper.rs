@@ -259,7 +259,11 @@ mod tests {
         Mock::given(method("POST"))
             .and(path("/test"))
             .and(body_string(body.clone()))
-            .respond_with(ResponseTemplate::new(201).set_body_string("{\"status\": \"created\"}"))
+            .respond_with(
+                ResponseTemplate::new(201)
+                    .set_body_json(json!({"status": "created"}))
+                    .insert_header("content-type", "application/json"),
+            )
             .mount(&mock_server)
             .await;
 
@@ -277,7 +281,10 @@ mod tests {
             .unwrap();
 
         assert_eq!(response.status, 201);
-        assert_eq!(response.decoded_body, "{\"status\": \"created\"}");
+        assert_eq!(
+            serde_json::from_str::<serde_json::Value>(&response.decoded_body).unwrap(),
+            json!({"status": "created"})
+        );
         assert_eq!(response.response_type, ResponseType::Json);
     }
 
