@@ -23,7 +23,7 @@ pub fn retry_parse_condition_should_apply(
 ) -> bool {
     match condition {
         ParseRetryCondition::Content(content_condition, _) => {
-            if let ScraperError::ExtractionError(msg) = error {
+            if let ScraperError::ParsingError(msg) = error {
                 check_content_condition(content_condition, msg)
             } else {
                 false
@@ -44,6 +44,13 @@ pub fn retry_parse_condition_should_apply(
                         StorageError::SerializationError(_)
                     )
                 )
+            } else {
+                false
+            }
+        }
+        ParseRetryCondition::ErrorWhileParsing(_) => {
+            if let ScraperError::ParsingError(_) = error {
+                true
             } else {
                 false
             }

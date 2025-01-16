@@ -28,6 +28,8 @@ pub struct StatsTracker {
     status_codes: parking_lot::RwLock<HashMap<u16, u64>>,
     retry_reasons: parking_lot::RwLock<HashMap<String, u64>>,
     storage_errors: AtomicU64,
+    parsing_errors: AtomicU64,
+    unhandled_errors: AtomicU64,
 }
 
 impl StatsTracker {
@@ -43,11 +45,25 @@ impl StatsTracker {
             status_codes: parking_lot::RwLock::new(HashMap::new()),
             retry_reasons: parking_lot::RwLock::new(HashMap::new()),
             storage_errors: AtomicU64::new(0),
+            parsing_errors: AtomicU64::new(0),
+            unhandled_errors: AtomicU64::new(0),
         }
     }
 
     pub fn increment_storage_errors(&self) {
         self.storage_errors.fetch_add(1, Ordering::Relaxed);
+        self.failed_requests.fetch_add(1, Ordering::Relaxed);
+        self.successful_requests.fetch_sub(1, Ordering::Relaxed);
+    }
+
+    pub fn increment_parsing_errors(&self) {
+        self.parsing_errors.fetch_add(1, Ordering::Relaxed);
+        self.failed_requests.fetch_add(1, Ordering::Relaxed);
+        self.successful_requests.fetch_sub(1, Ordering::Relaxed);
+    }
+
+    pub fn increment_unhandled_errors(&self) {
+        self.unhandled_errors.fetch_add(1, Ordering::Relaxed);
         self.failed_requests.fetch_add(1, Ordering::Relaxed);
         self.successful_requests.fetch_sub(1, Ordering::Relaxed);
     }

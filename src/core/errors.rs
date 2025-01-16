@@ -19,7 +19,7 @@ pub enum ScraperError {
     JsonError(#[from] serde_json::Error),
 
     #[error("Extraction error: {0}")]
-    ExtractionError(String),
+    ParsingError(String),
 
     #[error("Middleware error: {0}")]
     MiddlewareError(String),

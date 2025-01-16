@@ -29,7 +29,7 @@ pub enum HttpScraperError {
 
 impl From<HttpScraperError> for ScraperError {
     fn from(err: HttpScraperError) -> Self {
-        ScraperError::ExtractionError(err.to_string())
+        ScraperError::ParsingError(err.to_string())
     }
 }
 

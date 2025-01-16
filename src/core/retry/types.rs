@@ -26,6 +26,7 @@ pub enum ParseRetryType {
 pub enum ParseRetryCondition {
     Content(ContentRetryCondition, ParseRetryType),
     StorageError(StorageError, ParseRetryType),
+    ErrorWhileParsing(ParseRetryType),
 }
 
 #[derive(Debug, Clone, Copy)]

@@ -41,7 +41,7 @@ impl Crawler {
         let spider_clone = Arc::clone(&spider);
         let config = spider.config().clone();
 
-        let retry_error = ScraperError::ExtractionError("Content retry requested".to_string());
+        let retry_error = ScraperError::ParsingError("Content retry requested".to_string());
 
         if let Some((category, delay)) = config
             .retry_config
@@ -61,6 +61,28 @@ impl Crawler {
             futures.push(spawn(async move {
                 spider_clone.process_response(&spider_response).await
             }));
+        }
+    }
+
+    async fn check_and_process_retry<S: Spider + Send + Sync + 'static>(
+        &self,
+        request: HttpRequest,
+        error: &ScraperError,
+        spider: Arc<S>,
+        futures: &mut FuturesUnordered<JoinHandle<ScraperResult<ParseResult>>>,
+    ) {
+        let config = spider.config();
+        if let Some((category, delay)) = config.retry_config.should_retry_parse(&request.url, error)
+        {
+            warn!(
+                "Retrying request for URL: {} (category: {:?}, delay: {:?})",
+                request.url, category, delay
+            );
+            sleep(delay).await;
+            self.process_requests(vec![request], spider, futures, true)
+                .await;
+        } else {
+            info!("No retry configuration matches error: {:?}", error);
         }
     }
 
@@ -106,42 +128,54 @@ impl Crawler {
                         .await;
                     }
                     ParseResult::RetryWithNewContent(request) => {
-                        // Reuse process_requests for new content retries
-                        self.process_requests(
-                            vec![*request],
+                        self.stats.increment_parsing_errors();
+                        self.check_and_process_retry(
+                            *request,
+                            &ScraperError::ParsingError(
+                                "Retry with new content requested".to_string(),
+                            ),
                             Arc::clone(&spider),
                             &mut futures,
-                            true,
                         )
                         .await;
                     }
                 },
-                Ok(Err((ScraperError::MaxRetriesReached { category, url, .. }, request))) => {
-                    warn!(
-                        "Maximum retries reached for URL: {} (category: {:?})",
-                        url.to_string(),
-                        category
-                    );
-                    spider.handle_max_retries(category, request).await?;
-                }
-                Ok(Err(e)) => {
-                    warn!("Error processing request: {}", e.0);
-                    match e.0 {
-                        ScraperError::StorageError(_) => {
-                            self.stats.increment_storage_errors();
-                            self.process_requests(
-                                vec![*e.1],
-                                Arc::clone(&spider),
-                                &mut futures,
-                                true,
-                            )
-                            .await;
-                        }
-                        _ => {
-                            // Handle other types of errors
-                        }
+                Ok(Err((error, request))) => match error {
+                    ScraperError::MaxRetriesReached { category, url, .. } => {
+                        warn!(
+                            "Maximum retries reached for URL: {} (category: {:?})",
+                            url.to_string(),
+                            category
+                        );
+                        spider.handle_max_retries(category, request).await?;
                     }
-                }
+                    ScraperError::StorageError(msg) => {
+                        warn!("Storage error processing request: {}", msg);
+                        self.stats.increment_storage_errors();
+                        self.check_and_process_retry(
+                            *request,
+                            &ScraperError::StorageError(msg),
+                            Arc::clone(&spider),
+                            &mut futures,
+                        )
+                        .await;
+                    }
+                    ScraperError::ParsingError(msg) => {
+                        warn!("Parsing error processing request: {}", msg);
+                        self.stats.increment_parsing_errors();
+                        self.check_and_process_retry(
+                            *request,
+                            &ScraperError::ParsingError(msg),
+                            Arc::clone(&spider),
+                            &mut futures,
+                        )
+                        .await;
+                    }
+                    _ => {
+                        warn!("Unhandled error type: {:?}", error);
+                        self.stats.increment_unhandled_errors();
+                    }
+                },
                 Err(e) => warn!("Task error: {}", e),
             }
         }
