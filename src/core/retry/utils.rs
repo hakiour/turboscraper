@@ -48,13 +48,7 @@ pub fn retry_parse_condition_should_apply(
                 false
             }
         }
-        ParseRetryCondition::ErrorWhileParsing(_) => {
-            if let ScraperError::ParsingError(_) = error {
-                true
-            } else {
-                false
-            }
-        }
+        ParseRetryCondition::ErrorWhileParsing(_) => matches!(error, ScraperError::ParsingError(_)),
     }
 }
 
