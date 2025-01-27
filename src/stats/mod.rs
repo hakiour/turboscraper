@@ -15,6 +15,8 @@ pub struct ScrapingStats {
     pub status_codes: HashMap<u16, u64>,
     pub retry_reasons: HashMap<String, u64>,
     pub storage_errors: u64,
+    pub parsing_errors: u64,
+    pub unhandled_errors: u64,
 }
 
 pub struct StatsTracker {
@@ -51,43 +53,37 @@ impl StatsTracker {
     }
 
     pub fn increment_storage_errors(&self) {
-        self.storage_errors.fetch_add(1, Ordering::Relaxed);
-        self.failed_requests.fetch_add(1, Ordering::Relaxed);
-        self.successful_requests.fetch_sub(1, Ordering::Relaxed);
+        self.storage_errors.fetch_add(1, Ordering::SeqCst);
     }
 
     pub fn increment_parsing_errors(&self) {
-        self.parsing_errors.fetch_add(1, Ordering::Relaxed);
-        self.failed_requests.fetch_add(1, Ordering::Relaxed);
-        self.successful_requests.fetch_sub(1, Ordering::Relaxed);
+        self.parsing_errors.fetch_add(1, Ordering::SeqCst);
     }
 
     pub fn increment_unhandled_errors(&self) {
-        self.unhandled_errors.fetch_add(1, Ordering::Relaxed);
-        self.failed_requests.fetch_add(1, Ordering::Relaxed);
-        self.successful_requests.fetch_sub(1, Ordering::Relaxed);
+        self.unhandled_errors.fetch_add(1, Ordering::SeqCst);
     }
 
     pub fn record_request(&self, status: u16, size: usize, duration: Duration) {
-        self.total_requests.fetch_add(1, Ordering::Relaxed);
+        self.total_requests.fetch_add(1, Ordering::SeqCst);
 
         if status < 400 {
-            self.successful_requests.fetch_add(1, Ordering::Relaxed);
+            self.successful_requests.fetch_add(1, Ordering::SeqCst);
         } else {
-            self.failed_requests.fetch_add(1, Ordering::Relaxed);
+            self.failed_requests.fetch_add(1, Ordering::SeqCst);
         }
 
         let mut status_codes = self.status_codes.write();
         *status_codes.entry(status).or_insert(0) += 1;
 
         self.data_downloaded
-            .fetch_add(size as u64, Ordering::Relaxed);
+            .fetch_add(size as u64, Ordering::SeqCst);
         self.total_response_time
-            .fetch_add(duration.num_milliseconds() as u64, Ordering::Relaxed);
+            .fetch_add(duration.num_milliseconds() as u64, Ordering::SeqCst);
     }
 
     pub fn record_retry(&self, category: String) {
-        self.retry_count.fetch_add(1, Ordering::Relaxed);
+        self.retry_count.fetch_add(1, Ordering::SeqCst);
         let mut retry_reasons = self.retry_reasons.write();
         *retry_reasons.entry(category).or_insert(0) += 1;
     }
@@ -95,16 +91,18 @@ impl StatsTracker {
     pub fn get_stats(&self) -> ScrapingStats {
         ScrapingStats {
             duration: chrono::Duration::from_std(self.start_time.elapsed()).unwrap(),
-            total_requests: self.total_requests.load(Ordering::Relaxed),
-            successful_requests: self.successful_requests.load(Ordering::Relaxed),
-            failed_requests: self.failed_requests.load(Ordering::Relaxed),
-            retry_count: self.retry_count.load(Ordering::Relaxed),
-            data_downloaded: (self.data_downloaded.load(Ordering::Relaxed) as f64)
+            total_requests: self.total_requests.load(Ordering::SeqCst),
+            successful_requests: self.successful_requests.load(Ordering::SeqCst),
+            failed_requests: self.failed_requests.load(Ordering::SeqCst),
+            retry_count: self.retry_count.load(Ordering::SeqCst),
+            data_downloaded: (self.data_downloaded.load(Ordering::SeqCst) as f64)
                 / (1024.0 * 1024.0),
-            total_response_time: self.total_response_time.load(Ordering::Relaxed),
+            total_response_time: self.total_response_time.load(Ordering::SeqCst),
             status_codes: self.status_codes.read().clone(),
             retry_reasons: self.retry_reasons.read().clone(),
-            storage_errors: self.storage_errors.load(Ordering::Relaxed),
+            storage_errors: self.storage_errors.load(Ordering::SeqCst),
+            parsing_errors: self.parsing_errors.load(Ordering::SeqCst),
+            unhandled_errors: self.unhandled_errors.load(Ordering::SeqCst),
         }
     }
 
@@ -117,6 +115,8 @@ impl StatsTracker {
         println!("Successful Requests: {}", stats.successful_requests);
         println!("Failed Requests: {}", stats.failed_requests);
         println!("Storage Errors: {}", stats.storage_errors);
+        println!("Parsing Errors: {}", stats.parsing_errors);
+        println!("Unhandled Errors: {}", stats.unhandled_errors);
         println!("Retry Count: {}", stats.retry_count);
         println!("Data Downloaded: {:.2} MB", stats.data_downloaded);
 

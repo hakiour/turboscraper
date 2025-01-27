@@ -1,9 +1,12 @@
 use crate::core::spider::{ParseResult, SpiderResponse};
 use crate::stats::StatsTracker;
+use crate::storage::{StorageCategory, StorageItem};
 use crate::{HttpRequest, HttpResponse, Scraper, ScraperError};
+use chrono::Utc;
 use futures::stream::{FuturesUnordered, StreamExt};
-use log::{debug, info, trace, warn};
+use log::{debug, error, info, trace, warn};
 use parking_lot::RwLock;
+use serde_json::json;
 use std::collections::HashSet;
 use std::sync::Arc;
 use tokio::spawn;
@@ -72,6 +75,38 @@ impl Crawler {
         futures: &mut FuturesUnordered<JoinHandle<ScraperResult<ParseResult>>>,
     ) {
         let config = spider.config();
+
+        let error_item = StorageItem {
+            url: request.url.clone(),
+            timestamp: Utc::now(),
+            data: json!({
+                "error": format!("{:?}", error),
+                "spider": spider.name(),
+                "request": request,
+                "raw_body": request.body,
+            }),
+            metadata: Some(json!({
+                "error_type": match error {
+                    ScraperError::ParsingError(_) => "parsing_error",
+                    ScraperError::StorageError(_) => "storage_error",
+                    _ => "other_error",
+                },
+                "depth": request.depth,
+            })),
+            id: format!("{}_errors", spider.name()),
+        };
+
+        if let Err(e) = spider
+            .store_data(
+                error_item,
+                StorageCategory::Error,
+                Box::new(request.clone()),
+            )
+            .await
+        {
+            error!("Failed to store error: {:?}", e);
+        }
+
         if let Some((category, delay)) = config.retry_config.should_retry_parse(&request.url, error)
         {
             warn!(
