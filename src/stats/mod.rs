@@ -52,22 +52,25 @@ impl StatsTracker {
         }
     }
 
-    pub fn increment_storage_errors(&self) {
-        self.storage_errors.fetch_add(1, Ordering::SeqCst);
+    pub fn record_error(&self, error_type: ErrorType) {
+        match error_type {
+            ErrorType::Storage => self.storage_errors.fetch_add(1, Ordering::SeqCst),
+            ErrorType::Parsing => self.parsing_errors.fetch_add(1, Ordering::SeqCst),
+            ErrorType::Unhandled => self.unhandled_errors.fetch_add(1, Ordering::SeqCst),
+        };
     }
 
-    pub fn increment_parsing_errors(&self) {
-        self.parsing_errors.fetch_add(1, Ordering::SeqCst);
-    }
-
-    pub fn increment_unhandled_errors(&self) {
-        self.unhandled_errors.fetch_add(1, Ordering::SeqCst);
-    }
-
-    pub fn record_request(&self, status: u16, size: usize, duration: Duration) {
+    pub fn record_request(
+        &self,
+        status: u16,
+        size: usize,
+        duration: Duration,
+        is_parsing_successful: bool,
+    ) {
         self.total_requests.fetch_add(1, Ordering::SeqCst);
 
-        if status < 400 {
+        // A request is only successful if both HTTP status is good AND parsing succeeded
+        if status < 400 && is_parsing_successful {
             self.successful_requests.fetch_add(1, Ordering::SeqCst);
         } else {
             self.failed_requests.fetch_add(1, Ordering::SeqCst);
@@ -145,4 +148,11 @@ impl Default for StatsTracker {
     fn default() -> Self {
         Self::new()
     }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum ErrorType {
+    Storage,
+    Parsing,
+    Unhandled,
 }

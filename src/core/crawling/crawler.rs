@@ -1,5 +1,5 @@
 use crate::core::spider::{ParseResult, SpiderResponse};
-use crate::stats::StatsTracker;
+use crate::stats::{ErrorType, StatsTracker};
 use crate::storage::{StorageCategory, StorageItem};
 use crate::{HttpRequest, HttpResponse, Scraper, ScraperError};
 use chrono::Utc;
@@ -163,7 +163,6 @@ impl Crawler {
                         .await;
                     }
                     ParseResult::RetryWithNewContent(request) => {
-                        self.stats.increment_parsing_errors();
                         self.check_and_process_retry(
                             *request,
                             &ScraperError::ParsingError(
@@ -186,7 +185,7 @@ impl Crawler {
                     }
                     ScraperError::StorageError(msg) => {
                         warn!("Storage error processing request: {}", msg);
-                        self.stats.increment_storage_errors();
+                        self.stats.record_error(ErrorType::Storage);
                         self.check_and_process_retry(
                             *request,
                             &ScraperError::StorageError(msg),
@@ -197,7 +196,6 @@ impl Crawler {
                     }
                     ScraperError::ParsingError(msg) => {
                         warn!("Parsing error processing request: {}", msg);
-                        self.stats.increment_parsing_errors();
                         self.check_and_process_retry(
                             *request,
                             &ScraperError::ParsingError(msg),
@@ -208,10 +206,13 @@ impl Crawler {
                     }
                     _ => {
                         warn!("Unhandled error type: {:?}", error);
-                        self.stats.increment_unhandled_errors();
+                        self.stats.record_error(ErrorType::Unhandled);
                     }
                 },
-                Err(e) => warn!("Task error: {}", e),
+                Err(e) => {
+                    warn!("Task error: {}", e);
+                    self.stats.record_error(ErrorType::Unhandled);
+                }
             }
         }
 
@@ -276,14 +277,49 @@ impl Crawler {
         let spider_clone = Arc::clone(&spider);
         let scraper = self.scraper.box_clone();
         let config = spider.config().clone();
+        let stats = Arc::clone(&self.stats);
+        let start_time = Utc::now();
 
         futures.push(spawn(async move {
             let response = scraper.fetch(request.clone(), &config).await?;
             let spider_response = SpiderResponse {
-                response,
+                response: response.clone(),
                 callback: request.callback.clone(),
             };
-            spider_clone.process_response(&spider_response).await
+            let parse_result = spider_clone.process_response(&spider_response).await;
+            let duration = Utc::now().signed_duration_since(start_time);
+
+            // Record retry stats if any (moved outside match to avoid duplication)
+            if response.retry_count > 0 {
+                for (category, count) in response.retry_history.iter() {
+                    for _ in 0..*count {
+                        stats.record_retry(format!("{:?}", category));
+                    }
+                }
+            }
+
+            // Update stats based on parsing result and response
+            match &parse_result {
+                Ok(_) => {
+                    stats.record_request(
+                        response.status,
+                        response.decoded_body.len(),
+                        duration,
+                        true, // Parsing succeeded
+                    );
+                }
+                Err(_) => {
+                    stats.record_error(ErrorType::Parsing);
+                    stats.record_request(
+                        response.status,
+                        response.decoded_body.len(),
+                        duration,
+                        false, // Parsing failed
+                    );
+                }
+            }
+
+            parse_result
         }));
     }
 }

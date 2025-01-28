@@ -2,7 +2,6 @@ use crate::core::spider::SpiderConfig;
 use crate::http::request::HttpRequest;
 use crate::{HttpResponse, ScraperError, ScraperResult, StatsTracker};
 use async_trait::async_trait;
-use chrono::Utc;
 use log::{debug, info, warn};
 use std::sync::Arc;
 use tokio::time::sleep;
@@ -23,7 +22,6 @@ pub trait Scraper: Send + Sync {
         request: HttpRequest,
         config: &SpiderConfig,
     ) -> ScraperResult<HttpResponse> {
-        let start_time = Utc::now();
         let url = request.url.clone();
 
         loop {
@@ -76,10 +74,6 @@ pub trait Scraper: Send + Sync {
                 url, state.total_retries, response.status
             );
             debug!("Retry history for {}: {:?}", url, state.counts);
-
-            let duration = Utc::now().signed_duration_since(start_time);
-            self.stats()
-                .record_request(response.status, response.decoded_body.len(), duration);
 
             return Ok(HttpResponse {
                 retry_count: state.total_retries,
